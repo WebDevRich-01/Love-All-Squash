@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    @apply h-full bg-slate-50;
+    /* Prevent zoom on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Improve scrolling performance */
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    @apply h-full font-sans text-slate-900;
+    /* Prevent touch delay on iOS */
+    touch-action: manipulation;
+    /* Hide address bar on mobile */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+  #root {
+    @apply h-full;
+    /* Ensure full height on mobile */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Prevent text selection on buttons and interactive elements */
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .btn-let,
+  .btn-undo {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    /* Prevent touch highlighting */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Improve touch targets for mobile */
+  button,
+  input,
+  select,
+  textarea {
+    min-height: 44px; /* iOS recommended minimum */
+  }
+}
+
+@layer components {
+  /* Professional button styles */
+  .btn-primary {
+    @apply bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-slate-50 text-slate-700 font-medium py-3 px-6 rounded-lg border border-slate-200 shadow-sm transition-all duration-200 hover:shadow-md active:scale-95;
+  }
+
+  .btn-let {
+    @apply bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md active:scale-95;
+  }
+
+  .btn-undo {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-lg border border-slate-200 shadow-sm transition-all duration-200 hover:shadow-md active:scale-95;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200;
+  }
+
+  /* Player button serving state */
+  .player-serving {
+    @apply bg-blue-50 shadow-md;
+  }
+
+  .player-not-serving {
+    @apply bg-white border-slate-200;
+  }
+}

@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#22c55e" rx="64"/>
+  <g transform="translate(96, 96)">
+    <!-- Squash racket -->
+    <ellipse cx="160" cy="120" rx="60" ry="80" fill="none" stroke="white" stroke-width="8"/>
+    <ellipse cx="160" cy="120" rx="40" ry="60" fill="none" stroke="white" stroke-width="2"/>
+    <rect x="156" y="200" width="8" height="120" fill="white" rx="4"/>
+    
+    <!-- Squash ball -->
+    <circle cx="240" cy="200" r="16" fill="white"/>
+    
+    <!-- Score display -->
+    <rect x="40" y="40" width="240" height="60" fill="white" rx="8"/>
+    <text x="80" y="80" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#22c55e">11-9</text>
+  </g>
+</svg>
