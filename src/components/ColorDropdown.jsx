@@ -69,7 +69,7 @@ export default function ColorDropdown({ selectedColor, onColorChange }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2 border rounded bg-white hover:bg-gray-50 transition-colors duration-200 flex items-center justify-between"
+        className="w-full p-2 border rounded bg-white hover:bg-gray-50 transition-colors duration-200 flex items-center justify-between border-slate-400"
       >
         <div className="flex items-center">
           <div

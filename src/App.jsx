@@ -50,7 +50,7 @@ function App() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="max-w-md mx-auto w-full h-full bg-white shadow-lg">
+      <div className="mx-auto w-full h-full bg-white shadow-lg">
         <Routes>
           <Route
             path="/"

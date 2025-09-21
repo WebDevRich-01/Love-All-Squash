@@ -222,12 +222,14 @@ export default function MatchHistoryScreen({ onBack }) {
     <div className="h-full flex flex-col bg-gray-100">
       <div className="p-4 bg-white border-b">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <button onClick={onBack} className="p-2 mr-2">
-              &larr;
-            </button>
-            <h1 className="text-2xl font-bold">Match History</h1>
-          </div>
+          <button
+            onClick={onBack}
+            className="btn-secondary !py-2 !px-3 text-xl"
+          >
+            &larr;
+          </button>
+          <h1 className="text-2xl font-bold">Match History</h1>
+
           <button
             onClick={onBack}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"

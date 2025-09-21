@@ -24,7 +24,7 @@ export default function LandingScreen({
   };
   return (
     <div className="h-full flex flex-col items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full text-center">
         <h1 className="text-3xl font-bold mb-8">Squash Marker</h1>
 
         <div className="space-y-4">

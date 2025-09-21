@@ -47,7 +47,7 @@ const saveEventToLocalStorage = (eventName) => {
       // Use hardcoded fallback if environment variable is missing
       const API_URL =
         import.meta.env.VITE_API_URL ||
-        "https://your-new-backend-url.onrender.com";
+        "https://squash-marker-backend.onrender.com";
       console.log(`Attempting to save event to API at: ${API_URL}/api/events`);
 
       fetch(`${API_URL}/api/events`, {
@@ -179,8 +179,9 @@ export default function GameSetupScreen({
 
   return (
     <div className="h-full flex flex-col bg-gray-100 overflow-auto">
-      <div className="sticky top-0 z-10 bg-white p-4 border-b shadow-sm flex items-center">
-        <button onClick={onBack} className="p-2">
+      {/* Header */}
+      <div className="card flex justify-between items-center p-4 m-2 shrink-0">
+        <button onClick={onBack} className="btn-secondary !py-2 !px-3 text-xl">
           &larr;
         </button>
         <h2 className="text-2xl font-bold text-center flex-1">
@@ -188,40 +189,39 @@ export default function GameSetupScreen({
         </h2>
       </div>
 
-      <div className="flex-1 p-4 overflow-auto">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-auto">
+      {/* Match options */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        <div className="w-full mx-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
-              <div className="relative">
-                <label className="block mb-1 font-medium">Event Name</label>
-                <input
-                  type="text"
-                  value={settings.eventName}
-                  onChange={handleEventNameChange}
-                  onFocus={() => setShowEventSuggestions(true)}
-                  onBlur={() =>
-                    setTimeout(() => setShowEventSuggestions(false), 200)
-                  }
-                  className="w-full p-2 border rounded"
-                  placeholder="Enter event name"
-                />
-                {showEventSuggestions && filteredEvents.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredEvents.map((name, index) => (
-                      <div
-                        key={index}
-                        className="p-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => selectEvent(name)}
-                      >
-                        {name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="card flex flex-col min-h-0 relative bg-white p-4 m-2">
+              <label className="mb-1 font-medium">Event Name</label>
+              <input
+                type="text"
+                value={settings.eventName}
+                onChange={handleEventNameChange}
+                onFocus={() => setShowEventSuggestions(true)}
+                onBlur={() =>
+                  setTimeout(() => setShowEventSuggestions(false), 200)
+                }
+                className="w-full p-2 border rounded border-slate-400"
+                placeholder="Enter event name"
+              />
+              {showEventSuggestions && filteredEvents.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {filteredEvents.map((name, index) => (
+                    <div
+                      key={index}
+                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => selectEvent(name)}
+                    >
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
+            <div className="card flex flex-col min-h-0 relative bg-white p-4 m-2">
               <div className="space-y-3">
                 <div>
                   <label className="block mb-1 font-medium">
@@ -233,13 +233,13 @@ export default function GameSetupScreen({
                     onChange={(e) =>
                       setSettings({ ...settings, player1Name: e.target.value })
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded border-slate-400"
                     placeholder="Enter name"
                   />
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex-1">
+                  <div className="flex-2">
                     <ColorDropdown
                       selectedColor={settings.player1Color}
                       onColorChange={(color) =>
@@ -252,7 +252,7 @@ export default function GameSetupScreen({
                   </div>
 
                   <div className="flex-1">
-                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200 border-slate-400">
                       <div className="relative mr-3">
                         <input
                           type="checkbox"
@@ -264,7 +264,7 @@ export default function GameSetupScreen({
                               player2Serving: !e.target.checked,
                             })
                           }
-                          className="sr-only"
+                          className="sr-only border-slate-400"
                         />
                         <div
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors duration-200 ${
@@ -288,14 +288,14 @@ export default function GameSetupScreen({
                           )}
                         </div>
                       </div>
-                      <span className="font-medium">Serves First</span>
+                      <span className="font-medium">Serving</span>
                     </label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
+            <div className="card flex flex-col min-h-0 relative bg-white p-4 m-2">
               <div className="space-y-3">
                 <div>
                   <label className="block mb-1 font-medium">
@@ -307,13 +307,13 @@ export default function GameSetupScreen({
                     onChange={(e) =>
                       setSettings({ ...settings, player2Name: e.target.value })
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded border-slate-400"
                     placeholder="Enter name"
                   />
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex-1">
+                  <div className="flex-2">
                     <ColorDropdown
                       selectedColor={settings.player2Color}
                       onColorChange={(color) =>
@@ -326,7 +326,7 @@ export default function GameSetupScreen({
                   </div>
 
                   <div className="flex-1">
-                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200 border-slate-400">
                       <div className="relative mr-3">
                         <input
                           type="checkbox"
@@ -338,7 +338,7 @@ export default function GameSetupScreen({
                               player2Serving: e.target.checked,
                             })
                           }
-                          className="sr-only"
+                          className="sr-only border-slate-400"
                         />
                         <div
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors duration-200 ${
@@ -362,20 +362,20 @@ export default function GameSetupScreen({
                           )}
                         </div>
                       </div>
-                      <span className="font-medium">Serves First</span>
+                      <span className="font-medium">Serving</span>
                     </label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
-              <h3 className="font-semibold text-lg mb-3 text-center border-b pb-2">
+            <div className="card flex flex-col min-h-0 relative bg-white p-4 m-2">
+              <h3 className="font-semibold text-lg mb-3 text-center border-b border-slate-400 pb-2">
                 Match Settings
               </h3>
               <div className="space-y-3">
                 <div className="flex gap-3">
-                  <div className="flex-1">
+                  <div className="flex-2">
                     <label className="block mb-1 font-medium">
                       Points to Win
                     </label>
@@ -387,7 +387,7 @@ export default function GameSetupScreen({
                           pointsToWin: Number(e.target.value),
                         })
                       }
-                      className="w-full p-2 border rounded"
+                      className="w-full p-2 border rounded border-slate-400"
                       style={{ zIndex: 30 }}
                     >
                       <option value={11}>11 Points</option>
@@ -396,7 +396,7 @@ export default function GameSetupScreen({
                   </div>
 
                   <div className="flex-1 flex items-end">
-                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200 w-full">
+                    <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200 w-full border-slate-400">
                       <div className="relative mr-3">
                         <input
                           type="checkbox"
@@ -407,7 +407,7 @@ export default function GameSetupScreen({
                               clearPoints: e.target.checked ? 2 : 1,
                             })
                           }
-                          className="sr-only"
+                          className="sr-only border-slate-400"
                         />
                         <div
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors duration-200 ${
@@ -431,7 +431,7 @@ export default function GameSetupScreen({
                           )}
                         </div>
                       </div>
-                      <span className="font-medium">2 Clear Points</span>
+                      <span className="font-medium">2 Clear</span>
                     </label>
                   </div>
                 </div>
@@ -446,7 +446,7 @@ export default function GameSetupScreen({
                         bestOf: Number(e.target.value),
                       })
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded border-slate-400"
                     style={{ zIndex: 30 }}
                   >
                     <option value={3}>Best of 3</option>
@@ -455,13 +455,14 @@ export default function GameSetupScreen({
                 </div>
               </div>
             </div>
-
-            <button
-              type="submit"
-              className="w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              {isEditing ? "Save Changes" : "Start Match"}
-            </button>
+            <div className="flex">
+              <button
+                type="submit"
+                className="w-full p-3 m-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                {isEditing ? "Save Changes" : "Start Match"}
+              </button>
+            </div>
           </form>
         </div>
       </div>
