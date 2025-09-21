@@ -190,7 +190,7 @@ export default function GameSetupScreen({
       </div>
 
       {/* Match options */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div className="flex-1 flex min-h-0">
         <div className="w-full mx-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="card flex flex-col min-h-0 relative bg-white p-4 m-2">
