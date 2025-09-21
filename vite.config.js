@@ -12,7 +12,8 @@ export default defineConfig({
       manifest: {
         name: "Love All Squash",
         short_name: "LoveAllSquash",
-        description: "Professional squash match scoring and tracking app with enhanced features",
+        description:
+          "Professional squash match scoring and tracking app with enhanced features",
         theme_color: "#22c55e",
         background_color: "#000000",
         display: "fullscreen",
