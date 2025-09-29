@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import api from "../utils/api";
+import { create } from 'zustand';
+import api from '../utils/api';
 
 const getUniqueTimestamp = () => {
   return new Date().getTime();
@@ -18,21 +18,24 @@ const useGameStore = create((set, get) => ({
   gameScores: [], // [{player1: 15, player2: 13}, ...]
   matchWon: false,
 
+  // Tournament match context
+  tournamentMatchContext: null,
+
   // Current game state
   gameNumber: 1,
   player1: {
-    name: "",
-    color: "border-red-500",
+    name: '',
+    color: 'border-red-500',
     score: 0,
     serving: true,
-    serveSide: "R",
+    serveSide: 'R',
   },
   player2: {
-    name: "",
-    color: "border-blue-500",
+    name: '',
+    color: 'border-blue-500',
     score: 0,
     serving: false,
-    serveSide: "R",
+    serveSide: 'R',
   },
 
   // Match history
@@ -44,11 +47,11 @@ const useGameStore = create((set, get) => ({
   // Initialize score history with starting position
   scoreHistory: [
     {
-      type: "initial",
+      type: 'initial',
       player1Score: 0,
       player2Score: 0,
-      initialServeSide: "R",
-      servingPlayer: "player1",
+      initialServeSide: 'R',
+      servingPlayer: 'player1',
       timestamp: getUniqueTimestamp(),
     },
   ],
@@ -63,7 +66,7 @@ const useGameStore = create((set, get) => ({
   matchSaved: false,
 
   // Add event name to the store state
-  eventName: "",
+  eventName: '',
 
   // Actions
   setPlayerDetails: (playerNum, details) =>
@@ -72,6 +75,45 @@ const useGameStore = create((set, get) => ({
         ...state[`player${playerNum}`],
         ...details,
       },
+    })),
+
+  // Set tournament match context
+  setTournamentMatchContext: (context) =>
+    set({ tournamentMatchContext: context }),
+
+  // Reset game to initial state
+  resetGame: () =>
+    set(() => ({
+      player1: {
+        name: '',
+        color: 'border-red-500',
+        score: 0,
+        serving: true,
+        serveSide: 'R',
+      },
+      player2: {
+        name: '',
+        color: 'border-blue-500',
+        score: 0,
+        serving: false,
+        serveSide: 'R',
+      },
+      currentGame: 1,
+      gameScores: [],
+      matchWon: false,
+      matchSaved: false,
+      eventName: '',
+      tournamentMatchContext: null, // Clear tournament context
+      scoreHistory: [
+        {
+          type: 'initial',
+          player1Score: 0,
+          player2Score: 0,
+          initialServeSide: 'R',
+          servingPlayer: 'player1',
+          timestamp: getUniqueTimestamp(),
+        },
+      ],
     })),
 
   // Add back checkGameWin for the modal
@@ -142,7 +184,7 @@ const useGameStore = create((set, get) => ({
       if (isHandout) {
         // Only add the losing player's score above the handout line
         newHistory.push({
-          type: "score",
+          type: 'score',
           player: opponent,
           score: state[opponent].score,
           serveSide: state[opponent].serveSide,
@@ -152,7 +194,7 @@ const useGameStore = create((set, get) => ({
       } else {
         // For normal points (no handout), add the previous score
         newHistory.push({
-          type: "score",
+          type: 'score',
           player,
           score: state[player].score,
           serveSide: state[player].serveSide,
@@ -191,10 +233,10 @@ const useGameStore = create((set, get) => ({
             score: newScore,
             serving: true,
             serveSide: isHandout
-              ? "R"
-              : state[player].serveSide === "R"
-              ? "L"
-              : "R",
+              ? 'R'
+              : state[player].serveSide === 'R'
+              ? 'L'
+              : 'R',
           },
           [opponent]: {
             ...state[opponent],
@@ -213,10 +255,10 @@ const useGameStore = create((set, get) => ({
           score: newScore,
           serving: true,
           serveSide: isHandout
-            ? "R"
-            : state[player].serveSide === "R"
-            ? "L"
-            : "R",
+            ? 'R'
+            : state[player].serveSide === 'R'
+            ? 'L'
+            : 'R',
         },
         [opponent]: {
           ...state[opponent],
@@ -229,7 +271,7 @@ const useGameStore = create((set, get) => ({
   toggleServeSide: (playerNum) =>
     set((state) => {
       const player = `player${playerNum}`;
-      const newServeSide = state[player].serveSide === "R" ? "L" : "R";
+      const newServeSide = state[player].serveSide === 'R' ? 'L' : 'R';
 
       // If no points scored yet, update the initial serve side in history
       const newHistory = [...state.scoreHistory];
@@ -252,31 +294,31 @@ const useGameStore = create((set, get) => ({
   resetGame: () =>
     set(() => ({
       player1: {
-        name: "",
-        color: "border-red-500",
+        name: '',
+        color: 'border-red-500',
         score: 0,
         serving: true,
-        serveSide: "R",
+        serveSide: 'R',
       },
       player2: {
-        name: "",
-        color: "border-blue-500",
+        name: '',
+        color: 'border-blue-500',
         score: 0,
         serving: false,
-        serveSide: "R",
+        serveSide: 'R',
       },
       currentGame: 1,
       gameScores: [],
       matchWon: false,
       matchSaved: false,
-      eventName: "",
+      eventName: '',
       scoreHistory: [
         {
-          type: "initial",
+          type: 'initial',
           player1Score: 0,
           player2Score: 0,
-          initialServeSide: "R",
-          servingPlayer: "player1",
+          initialServeSide: 'R',
+          servingPlayer: 'player1',
           timestamp: getUniqueTimestamp(),
         },
       ],
@@ -291,15 +333,15 @@ const useGameStore = create((set, get) => ({
       let newHistory = state.scoreHistory.slice(0, -1);
 
       // If it's a let entry, remove the previous entry too
-      if (lastEntry.type === "let" && newHistory.length > 1) {
+      if (lastEntry.type === 'let' && newHistory.length > 1) {
         newHistory = newHistory.slice(0, -1);
         return { scoreHistory: newHistory };
       }
 
       // If it's a stroke entry, remove the previous entries and reduce score
-      if (lastEntry.type === "stroke") {
+      if (lastEntry.type === 'stroke') {
         const player = lastEntry.player;
-        const opponent = player === "player1" ? "player2" : "player1";
+        const opponent = player === 'player1' ? 'player2' : 'player1';
         newHistory = newHistory.slice(0, -1);
 
         // If it was a handout stroke, restore serving state
@@ -330,7 +372,7 @@ const useGameStore = create((set, get) => ({
 
       // If it's a no let entry with handout, remove the previous score too
       if (
-        lastEntry.type === "nolet" &&
+        lastEntry.type === 'nolet' &&
         lastEntry.isHandout &&
         newHistory.length > 1
       ) {
@@ -339,9 +381,9 @@ const useGameStore = create((set, get) => ({
       }
 
       // Handle regular scoring entries
-      if (lastEntry.type === "score") {
+      if (lastEntry.type === 'score') {
         const player = lastEntry.player;
-        const opponent = player === "player1" ? "player2" : "player1";
+        const opponent = player === 'player1' ? 'player2' : 'player1';
 
         // If this was a handout, we need to restore the previous serving state
         if (lastEntry.isHandout) {
@@ -381,7 +423,7 @@ const useGameStore = create((set, get) => ({
       const newHistory = [...state.scoreHistory];
 
       newHistory.push({
-        type: "let",
+        type: 'let',
         player,
         score: state[player].score,
         serveSide: state[player].serving ? state[player].serveSide : null,
@@ -400,20 +442,20 @@ const useGameStore = create((set, get) => ({
       const newHistory = [...state.scoreHistory];
 
       switch (decision) {
-        case "let": {
+        case 'let': {
           // For a let, no score changes, just replay the rally
           // No need to add anything to score history
           return state; // Return unchanged state
         }
 
-        case "stroke": {
+        case 'stroke': {
           const isHandout = !state[player].serving;
           const newScore = state[player].score + 1;
 
           if (isHandout) {
             // Only add the losing player's score above the handout line
             newHistory.push({
-              type: "score",
+              type: 'score',
               player: opponent,
               score: state[opponent].score,
               serveSide: state[opponent].serveSide,
@@ -424,7 +466,7 @@ const useGameStore = create((set, get) => ({
           } else {
             // For normal points (no handout), add the previous score
             newHistory.push({
-              type: "score",
+              type: 'score',
               player,
               score: state[player].score,
               serveSide: state[player].serveSide,
@@ -463,10 +505,10 @@ const useGameStore = create((set, get) => ({
                 score: newScore,
                 serving: true,
                 serveSide: isHandout
-                  ? "R"
-                  : state[player].serveSide === "R"
-                  ? "L"
-                  : "R",
+                  ? 'R'
+                  : state[player].serveSide === 'R'
+                  ? 'L'
+                  : 'R',
               },
               [opponent]: {
                 ...state[opponent],
@@ -484,10 +526,10 @@ const useGameStore = create((set, get) => ({
               score: newScore,
               serving: true,
               serveSide: isHandout
-                ? "R"
-                : state[player].serveSide === "R"
-                ? "L"
-                : "R",
+                ? 'R'
+                : state[player].serveSide === 'R'
+                ? 'L'
+                : 'R',
             },
             [opponent]: {
               ...state[opponent],
@@ -497,7 +539,7 @@ const useGameStore = create((set, get) => ({
           };
         }
 
-        case "nolet": {
+        case 'nolet': {
           const isServingPlayerCalling = state[player].serving;
           const willHandout = isServingPlayerCalling;
           const newScore = state[opponent].score + 1;
@@ -505,7 +547,7 @@ const useGameStore = create((set, get) => ({
           if (willHandout) {
             // Only add the losing player's score above the handout line
             newHistory.push({
-              type: "score",
+              type: 'score',
               player,
               score: state[player].score,
               serveSide: state[player].serveSide,
@@ -516,7 +558,7 @@ const useGameStore = create((set, get) => ({
           } else {
             // For normal points (no handout), add the previous score
             newHistory.push({
-              type: "score",
+              type: 'score',
               player: opponent,
               score: state[opponent].score,
               serveSide: state[opponent].serveSide,
@@ -561,10 +603,10 @@ const useGameStore = create((set, get) => ({
                 score: newScore,
                 serving: true,
                 serveSide: willHandout
-                  ? "R"
-                  : state[opponent].serveSide === "R"
-                  ? "L"
-                  : "R",
+                  ? 'R'
+                  : state[opponent].serveSide === 'R'
+                  ? 'L'
+                  : 'R',
               },
               [player]: {
                 ...state[player],
@@ -582,10 +624,10 @@ const useGameStore = create((set, get) => ({
               score: newScore,
               serving: true,
               serveSide: willHandout
-                ? "R"
-                : state[opponent].serveSide === "R"
-                ? "L"
-                : "R",
+                ? 'R'
+                : state[opponent].serveSide === 'R'
+                ? 'L'
+                : 'R',
             },
             [player]: {
               ...state[player],
@@ -622,8 +664,8 @@ const useGameStore = create((set, get) => ({
       const player1WonLastGame = lastGame.player1 > lastGame.player2;
 
       console.log(
-        "Previous game winner:",
-        player1WonLastGame ? "Player 1" : "Player 2"
+        'Previous game winner:',
+        player1WonLastGame ? 'Player 1' : 'Player 2'
       );
 
       return {
@@ -633,21 +675,21 @@ const useGameStore = create((set, get) => ({
           ...state.player1,
           score: 0,
           serving: player1WonLastGame, // Player 1 serves if they won the last game
-          serveSide: "R", // Always start on right side
+          serveSide: 'R', // Always start on right side
         },
         player2: {
           ...state.player2,
           score: 0,
           serving: !player1WonLastGame, // Player 2 serves if they won the last game
-          serveSide: "R", // Always start on right side
+          serveSide: 'R', // Always start on right side
         },
         scoreHistory: [
           {
-            type: "initial",
+            type: 'initial',
             player1Score: 0,
             player2Score: 0,
-            initialServeSide: "R",
-            servingPlayer: player1WonLastGame ? "player1" : "player2",
+            initialServeSide: 'R',
+            servingPlayer: player1WonLastGame ? 'player1' : 'player2',
             timestamp: getUniqueTimestamp(),
           },
         ],
@@ -657,7 +699,7 @@ const useGameStore = create((set, get) => ({
   // Initialize game with settings
   initializeGame: (settings) => {
     // Make sure eventName is a string, not undefined or null
-    const eventName = settings.eventName || "";
+    const eventName = settings.eventName || '';
 
     set(() => ({
       matchSettings: {
@@ -670,14 +712,14 @@ const useGameStore = create((set, get) => ({
         color: settings.player1Color,
         score: 0,
         serving: settings.player1Serving,
-        serveSide: "R",
+        serveSide: 'R',
       },
       player2: {
         name: settings.player2Name,
         color: settings.player2Color,
         score: 0,
         serving: !settings.player1Serving,
-        serveSide: "R",
+        serveSide: 'R',
       },
       eventName: eventName, // Use the validated event name
       currentGame: 1,
@@ -686,11 +728,11 @@ const useGameStore = create((set, get) => ({
       matchSaved: false,
       scoreHistory: [
         {
-          type: "initial",
+          type: 'initial',
           player1Score: 0,
           player2Score: 0,
-          initialServeSide: "R",
-          servingPlayer: settings.player1Serving ? "player1" : "player2",
+          initialServeSide: 'R',
+          servingPlayer: settings.player1Serving ? 'player1' : 'player2',
           timestamp: getUniqueTimestamp(),
         },
       ],
@@ -709,7 +751,7 @@ const useGameStore = create((set, get) => ({
     set({ isSaving: true, saveError: null });
 
     // Make sure eventName is a string, not undefined or null
-    const eventName = state.eventName || "";
+    const eventName = state.eventName || '';
 
     const matchData = {
       player1Name: state.player1.name,
@@ -727,9 +769,9 @@ const useGameStore = create((set, get) => ({
       set({ isSaving: false, matchSaved: true });
       return true;
     } catch (error) {
-      console.error("Error saving match:", error);
+      console.error('Error saving match:', error);
       set({
-        saveError: "Failed to save match. Please try again.",
+        saveError: 'Failed to save match. Please try again.',
         isSaving: false,
       });
       return false;
@@ -743,10 +785,13 @@ const useGameStore = create((set, get) => ({
     if (matchWon) {
       set({ matchWon: true });
 
-      // Only save if the match is actually won
-      const savedSuccessfully = await get().saveCompletedMatch();
-      if (!savedSuccessfully) {
-        console.error("Match save failed");
+      // Only save to regular matches API if this is NOT a tournament match
+      const state = get();
+      if (!state.tournamentMatchContext) {
+        const savedSuccessfully = await get().saveCompletedMatch();
+        if (!savedSuccessfully) {
+          console.error('Match save failed');
+        }
       }
     }
 
@@ -810,7 +855,7 @@ const useGameStore = create((set, get) => ({
         // Don't update score or serving status
       },
       // Update or preserve the event name
-      eventName: settings.eventName || state.eventName || "",
+      eventName: settings.eventName || state.eventName || '',
       // Don't reset currentGame, gameScores, or matchWon
     }));
   },
