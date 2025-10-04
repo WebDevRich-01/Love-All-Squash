@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Custom hook to manage Screen Wake Lock API
@@ -11,24 +11,20 @@ export const useWakeLock = () => {
 
   useEffect(() => {
     // Check if Wake Lock API is supported
-    setIsSupported("wakeLock" in navigator);
+    setIsSupported('wakeLock' in navigator);
   }, []);
 
   const requestWakeLock = async () => {
     if (!isSupported) {
-      console.log("Wake Lock API not supported");
       return false;
     }
 
     try {
-      wakeLockRef.current = await navigator.wakeLock.request("screen");
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
       setIsActive(true);
 
-      console.log("Screen Wake Lock activated");
-
       // Listen for wake lock release
-      wakeLockRef.current.addEventListener("release", () => {
-        console.log("Screen Wake Lock released");
+      wakeLockRef.current.addEventListener('release', () => {
         setIsActive(false);
       });
 
@@ -46,7 +42,6 @@ export const useWakeLock = () => {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
         setIsActive(false);
-        console.log("Screen Wake Lock manually released");
       } catch (err) {
         console.error(
           `Failed to release wake lock: ${err.name}, ${err.message}`
@@ -59,7 +54,7 @@ export const useWakeLock = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (
-        document.visibilityState === "visible" &&
+        document.visibilityState === 'visible' &&
         isActive &&
         !wakeLockRef.current
       ) {
@@ -67,10 +62,10 @@ export const useWakeLock = () => {
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       releaseWakeLock();
     };
   }, [isActive]);

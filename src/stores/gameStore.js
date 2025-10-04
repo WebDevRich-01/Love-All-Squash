@@ -663,11 +663,6 @@ const useGameStore = create((set, get) => ({
       const lastGame = state.gameScores[lastGameIndex];
       const player1WonLastGame = lastGame.player1 > lastGame.player2;
 
-      console.log(
-        'Previous game winner:',
-        player1WonLastGame ? 'Player 1' : 'Player 2'
-      );
-
       return {
         ...state,
         currentGame: state.currentGame + 1,
@@ -835,29 +830,45 @@ const useGameStore = create((set, get) => ({
 
   // Update the updateGameSettings method to preserve the event name
   updateGameSettings: (settings) => {
-    set((state) => ({
-      matchSettings: {
-        ...state.matchSettings,
-        pointsToWin: settings.pointsToWin,
-        clearPoints: settings.clearPoints,
-        bestOf: settings.bestOf,
-      },
-      player1: {
-        ...state.player1,
-        name: settings.player1Name,
-        color: settings.player1Color,
-        // Don't update score or serving status
-      },
-      player2: {
-        ...state.player2,
-        name: settings.player2Name,
-        color: settings.player2Color,
-        // Don't update score or serving status
-      },
-      // Update or preserve the event name
-      eventName: settings.eventName || state.eventName || '',
-      // Don't reset currentGame, gameScores, or matchWon
-    }));
+    console.log('=== UPDATING GAME SETTINGS ===');
+    console.log('Settings received:', settings);
+    console.log('Current state before update:', {
+      player1: get().player1,
+      player2: get().player2,
+    });
+
+    set((state) => {
+      const newState = {
+        matchSettings: {
+          ...state.matchSettings,
+          pointsToWin: settings.pointsToWin,
+          clearPoints: settings.clearPoints,
+          bestOf: settings.bestOf,
+        },
+        player1: {
+          ...state.player1,
+          name: settings.player1Name,
+          color: settings.player1Color,
+          // Don't update score or serving status
+        },
+        player2: {
+          ...state.player2,
+          name: settings.player2Name,
+          color: settings.player2Color,
+          // Don't update score or serving status
+        },
+        // Update or preserve the event name
+        eventName: settings.eventName || state.eventName || '',
+        // Don't reset currentGame, gameScores, or matchWon
+      };
+
+      console.log('New state after update:', {
+        player1: newState.player1,
+        player2: newState.player2,
+      });
+
+      return newState;
+    });
   },
 }));
 

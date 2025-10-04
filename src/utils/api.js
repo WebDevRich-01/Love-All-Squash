@@ -177,13 +177,26 @@ const api = {
   },
 
   submitTournamentMatchResult: async (tournamentId, matchId, result) => {
+    console.log('submitTournamentMatchResult called with:', {
+      tournamentId,
+      matchId,
+      result,
+    });
+    console.log('isDevelopment:', isDevelopment);
+    console.log(
+      'VITE_USE_LOCAL_STORAGE:',
+      import.meta.env.VITE_USE_LOCAL_STORAGE
+    );
+
     if (isDevelopment) {
+      console.log('Using mock response (development mode)');
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({ success: true, tournament_complete: false });
         }, 500);
       });
     } else {
+      console.log('Making actual API call to backend');
       try {
         const response = await fetch(
           `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,

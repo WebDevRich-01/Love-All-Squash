@@ -68,44 +68,121 @@ const MonradTournamentView = ({
   };
 
   // Get participant info including seed
-  const getParticipantInfo = (participantRef) => {
+  const getParticipantInfo = (
+    participantRef,
+    matchNumber,
+    participantPosition,
+    round
+  ) => {
     if (!participantRef) return { name: 'TBD', seed: '?' };
 
-    // If participant has direct seed info, use it
-    if (participantRef.seed) {
+    // Handle seed position placeholders
+    if (participantRef.type === 'seed_position') {
       return {
-        name: participantRef.name || 'TBD',
+        name: `Seed ${participantRef.seed}`,
         seed: participantRef.seed,
+        isPlaceholder: true,
       };
     }
 
-    // Otherwise look up in participants array by participant_id
-    if (participantRef.participant_id) {
-      const participant = participants.find(
-        (p) => p._id === participantRef.participant_id
-      );
-      if (participant) {
+    // Handle actual participants
+    if (participantRef.type === 'participant') {
+      // For Round 1, use original seed from participants array
+      if (round === 1) {
+        if (participantRef.participant_id) {
+          const participant = participants.find(
+            (p) => p._id === participantRef.participant_id
+          );
+          if (participant) {
+            return {
+              name: participant.name,
+              seed: participant.seed,
+              isPlaceholder: false,
+            };
+          }
+        }
+      } else {
+        // For Round 2+, calculate current seed based on match position
+        const currentSeed = getMonradSeedForMatch(
+          matchNumber,
+          participantPosition,
+          round
+        );
         return {
-          name: participant.name,
-          seed: participant.seed,
+          name: participantRef.name || 'TBD',
+          seed: currentSeed,
+          isPlaceholder: false,
         };
       }
     }
 
-    // Fallback
+    // Fallback for legacy format or missing data
     return {
       name: participantRef.name || 'TBD',
-      seed: '?',
+      seed: participantRef.seed || '?',
+      isPlaceholder: !participantRef.participant_id,
     };
+  };
+
+  // Calculate current seed position based on match and participant position
+  const getMonradSeedForMatch = (matchNumber, participantPosition, round) => {
+    if (round === 2) {
+      // For 8-player Monrad Round 2 structure:
+      // R2M1: Seed 1 vs Seed 4
+      // R2M2: Seed 2 vs Seed 3
+      // R2M3: Seed 5 vs Seed 8
+      // R2M4: Seed 6 vs Seed 7
+      const seedMap = {
+        R2M1: { participant_a: 1, participant_b: 4 },
+        R2M2: { participant_a: 2, participant_b: 3 },
+        R2M3: { participant_a: 5, participant_b: 8 },
+        R2M4: { participant_a: 6, participant_b: 7 },
+      };
+
+      return seedMap[matchNumber]?.[participantPosition] || '?';
+    }
+
+    if (round === 3) {
+      // For 8-player Monrad Round 3 structure:
+      // R3M1: Seed 1 vs Seed 2
+      // R3M2: Seed 3 vs Seed 4
+      // R3M3: Seed 5 vs Seed 6
+      // R3M4: Seed 7 vs Seed 8
+      const seedMap = {
+        R3M1: { participant_a: 1, participant_b: 2 },
+        R3M2: { participant_a: 3, participant_b: 4 },
+        R3M3: { participant_a: 5, participant_b: 6 },
+        R3M4: { participant_a: 7, participant_b: 8 },
+      };
+
+      return seedMap[matchNumber]?.[participantPosition] || '?';
+    }
+
+    // For other rounds, return '?' for now
+    return '?';
   };
 
   // Render a single match tile
   const MatchTile = ({ match }) => {
     const statusColor = getStatusColor(match.status);
-    const canScore = match.status === 'ready';
+    const playerA = getParticipantInfo(
+      match.participant_a,
+      match.match_number,
+      'participant_a',
+      match.round
+    );
+    const playerB = getParticipantInfo(
+      match.participant_b,
+      match.match_number,
+      'participant_b',
+      match.round
+    );
 
-    const playerA = getParticipantInfo(match.participant_a);
-    const playerB = getParticipantInfo(match.participant_b);
+    // Can only score if match is ready and both players are actual participants (not placeholders)
+    const canScore =
+      match.status === 'ready' &&
+      !playerA.isPlaceholder &&
+      !playerB.isPlaceholder;
 
     return (
       <div
@@ -142,7 +219,13 @@ const MonradTournamentView = ({
               <span className='text-sm font-medium text-gray-500'>
                 #{playerA.seed}
               </span>
-              <span className='font-medium'>{playerA.name}</span>
+              <span
+                className={`font-medium ${
+                  playerA.isPlaceholder ? 'text-gray-400 italic' : ''
+                }`}
+              >
+                {playerA.name}
+              </span>
             </div>
             {match.status === 'completed' &&
               match.result?.winner_participant_id ===
@@ -158,7 +241,13 @@ const MonradTournamentView = ({
               <span className='text-sm font-medium text-gray-500'>
                 #{playerB.seed}
               </span>
-              <span className='font-medium'>{playerB.name}</span>
+              <span
+                className={`font-medium ${
+                  playerB.isPlaceholder ? 'text-gray-400 italic' : ''
+                }`}
+              >
+                {playerB.name}
+              </span>
             </div>
             {match.status === 'completed' &&
               match.result?.winner_participant_id ===
@@ -228,12 +317,42 @@ const MonradTournamentView = ({
 
   // Get final rankings from completed tournament
   const getFinalRankings = () => {
-    if (tournament.status !== 'completed') return [];
+    // Check if tournament is complete (all matches in final round are completed)
+    const maxRound = Math.max(...matches.map((m) => m.round));
+    const finalRoundMatches = matches.filter((m) => m.round === maxRound);
+    const allFinalRoundComplete =
+      finalRoundMatches.length > 0 &&
+      finalRoundMatches.every((m) => m.status === 'completed');
 
-    // For now, return a placeholder - this will be populated by the backend
-    return participants
-      .map((p, idx) => ({ ...p, finalPosition: idx + 1 }))
-      .sort((a, b) => a.finalPosition - b.finalPosition);
+    if (!allFinalRoundComplete) return [];
+
+    // Get final standings from tournament state
+    if (tournament.state_blob && tournament.state_blob.seedPositions) {
+      const seedPositions = tournament.state_blob.seedPositions;
+
+      // Convert seed positions to final rankings (seed 1 = 1st place, etc.)
+      const rankings = [];
+      for (let seed = 1; seed <= 8; seed++) {
+        const seedInfo = seedPositions[seed.toString()];
+        if (seedInfo) {
+          const participant = participants.find(
+            (p) => p._id === seedInfo.participant_id
+          );
+          if (participant) {
+            rankings.push({
+              ...participant,
+              finalPosition: seed,
+              current_seed: seed,
+            });
+          }
+        }
+      }
+
+      return rankings.sort((a, b) => a.finalPosition - b.finalPosition);
+    }
+
+    // Fallback: return empty array if no state available
+    return [];
   };
 
   const finalRankings = getFinalRankings();

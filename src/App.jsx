@@ -78,6 +78,21 @@ function App() {
     const gameState = useGameStore.getState();
     const tournamentMatchContext = gameState.tournamentMatchContext;
 
+    console.log('=== FINISHING MATCH ===');
+    console.log('Game state:', {
+      player1: gameState.player1,
+      player2: gameState.player2,
+      gameScores: gameState.gameScores,
+      tournamentMatchContext: tournamentMatchContext,
+    });
+
+    console.log('Player names debug:', {
+      player1Name: gameState.player1?.name,
+      player2Name: gameState.player2?.name,
+      player1Object: gameState.player1,
+      player2Object: gameState.player2,
+    });
+
     // If this was a tournament match, submit the result
     if (tournamentMatchContext) {
       try {
@@ -88,6 +103,9 @@ function App() {
         const player2Wins = gameState.gameScores.filter(
           (s) => s.player2 > s.player1
         ).length;
+
+        console.log('Match results:', { player1Wins, player2Wins });
+
         const winnerId =
           player1Wins > player2Wins
             ? tournamentMatchContext.player1Id
@@ -114,6 +132,8 @@ function App() {
           walkover: false,
           retired: false,
         };
+
+        console.log('Submitting match result:', matchResult);
 
         await api.submitTournamentMatchResult(
           tournamentMatchContext.tournamentId,
@@ -145,6 +165,9 @@ function App() {
   };
 
   const handleScoreTournamentMatch = (matchContext) => {
+    console.log('=== STARTING TOURNAMENT MATCH ===');
+    console.log('Match context:', matchContext);
+
     // Store tournament match context in game store for when match is completed
     setTournamentMatchContext({
       ...matchContext,
@@ -167,6 +190,7 @@ function App() {
       eventName: `Tournament Match`,
     };
 
+    console.log('Game settings:', gameSettings);
     updateGameSettings(gameSettings);
     setHasActiveMatch(true);
     navigate('/game');
