@@ -126,39 +126,27 @@ const MonradTournamentView = ({
 
   // Calculate current seed position based on match and participant position
   const getMonradSeedForMatch = (matchNumber, participantPosition, round) => {
-    if (round === 2) {
-      // For 8-player Monrad Round 2 structure:
-      // R2M1: Seed 1 vs Seed 4
-      // R2M2: Seed 2 vs Seed 3
-      // R2M3: Seed 5 vs Seed 8
-      // R2M4: Seed 6 vs Seed 7
-      const seedMap = {
-        R2M1: { participant_a: 1, participant_b: 4 },
-        R2M2: { participant_a: 2, participant_b: 3 },
-        R2M3: { participant_a: 5, participant_b: 8 },
-        R2M4: { participant_a: 6, participant_b: 7 },
-      };
+    // For any round, calculate seed based on match number and position
+    // Extract match number from string like "R2M1" -> 1
+    const matchNum = parseInt(matchNumber.match(/M(\d+)$/)?.[1] || '0');
 
-      return seedMap[matchNumber]?.[participantPosition] || '?';
+    if (round === 1) {
+      // Round 1: Use original participant seeds (handled elsewhere)
+      return '?';
     }
 
-    if (round === 3) {
-      // For 8-player Monrad Round 3 structure:
-      // R3M1: Seed 1 vs Seed 2
-      // R3M2: Seed 3 vs Seed 4
-      // R3M3: Seed 5 vs Seed 6
-      // R3M4: Seed 7 vs Seed 8
-      const seedMap = {
-        R3M1: { participant_a: 1, participant_b: 2 },
-        R3M2: { participant_a: 3, participant_b: 4 },
-        R3M3: { participant_a: 5, participant_b: 6 },
-        R3M4: { participant_a: 7, participant_b: 8 },
-      };
+    if (round >= 2) {
+      // For Round 2+: Calculate seed position dynamically
+      // Each match pairs consecutive seed ranges
+      const basePosition = (matchNum - 1) * 2;
 
-      return seedMap[matchNumber]?.[participantPosition] || '?';
+      if (participantPosition === 'participant_a') {
+        return basePosition + 1;
+      } else if (participantPosition === 'participant_b') {
+        return basePosition + 2;
+      }
     }
 
-    // For other rounds, return '?' for now
     return '?';
   };
 
@@ -332,7 +320,9 @@ const MonradTournamentView = ({
 
       // Convert seed positions to final rankings (seed 1 = 1st place, etc.)
       const rankings = [];
-      for (let seed = 1; seed <= 8; seed++) {
+      const participantCount = participants.length;
+
+      for (let seed = 1; seed <= participantCount; seed++) {
         const seedInfo = seedPositions[seed.toString()];
         if (seedInfo) {
           const participant = participants.find(
