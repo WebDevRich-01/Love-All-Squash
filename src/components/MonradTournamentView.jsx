@@ -67,50 +67,65 @@ const MonradTournamentView = ({
     }
   };
 
-  // Get participant info including seed
-  const getParticipantInfo = (
-    participantRef,
-    matchNumber,
-    participantPosition,
-    round
-  ) => {
-    if (!participantRef) return { name: 'TBD', seed: '?' };
+  // Get participant info including original seed in name
+  const getParticipantInfo = (participantRef) => {
+    if (!participantRef) return { name: 'TBD', isPlaceholder: true };
+
+    // Handle bye players
+    if (participantRef.type === 'bye') {
+      return {
+        name: participantRef.name || 'BYE',
+        isPlaceholder: false,
+        isBye: true,
+      };
+    }
 
     // Handle seed position placeholders
     if (participantRef.type === 'seed_position') {
       return {
         name: `Seed ${participantRef.seed}`,
-        seed: participantRef.seed,
         isPlaceholder: true,
       };
     }
 
     // Handle actual participants
     if (participantRef.type === 'participant') {
-      // For Round 1, use original seed from participants array
-      if (round === 1) {
-        if (participantRef.participant_id) {
-          const participant = participants.find(
-            (p) => p._id === participantRef.participant_id
-          );
-          if (participant) {
-            return {
-              name: participant.name,
-              seed: participant.seed,
-              isPlaceholder: false,
-            };
-          }
-        }
-      } else {
-        // For Round 2+, calculate current seed based on match position
-        const currentSeed = getMonradSeedForMatch(
-          matchNumber,
-          participantPosition,
-          round
+      if (participantRef.participant_id) {
+        const participant = participants.find(
+          (p) => p._id === participantRef.participant_id
         );
+        if (participant) {
+          // Format name with original seed: "Rich Morris (1)"
+          const nameWithSeed = participant.seed
+            ? `${participant.name} (${participant.seed})`
+            : participant.name;
+
+          return {
+            name: nameWithSeed,
+            originalSeed: participant.seed,
+            isPlaceholder: false,
+          };
+        }
+      }
+
+      // For resolved participants in later rounds, try to get original seed
+      if (participantRef.name && participantRef.name !== 'TBD') {
+        // Find original participant by name to get their original seed
+        const originalParticipant = participants.find(
+          (p) => p.name === participantRef.name
+        );
+
+        if (originalParticipant && originalParticipant.seed) {
+          const nameWithSeed = `${participantRef.name} (${originalParticipant.seed})`;
+          return {
+            name: nameWithSeed,
+            originalSeed: originalParticipant.seed,
+            isPlaceholder: false,
+          };
+        }
+
         return {
-          name: participantRef.name || 'TBD',
-          seed: currentSeed,
+          name: participantRef.name,
           isPlaceholder: false,
         };
       }
@@ -119,58 +134,23 @@ const MonradTournamentView = ({
     // Fallback for legacy format or missing data
     return {
       name: participantRef.name || 'TBD',
-      seed: participantRef.seed || '?',
       isPlaceholder: !participantRef.participant_id,
     };
-  };
-
-  // Calculate current seed position based on match and participant position
-  const getMonradSeedForMatch = (matchNumber, participantPosition, round) => {
-    // For any round, calculate seed based on match number and position
-    // Extract match number from string like "R2M1" -> 1
-    const matchNum = parseInt(matchNumber.match(/M(\d+)$/)?.[1] || '0');
-
-    if (round === 1) {
-      // Round 1: Use original participant seeds (handled elsewhere)
-      return '?';
-    }
-
-    if (round >= 2) {
-      // For Round 2+: Calculate seed position dynamically
-      // Each match pairs consecutive seed ranges
-      const basePosition = (matchNum - 1) * 2;
-
-      if (participantPosition === 'participant_a') {
-        return basePosition + 1;
-      } else if (participantPosition === 'participant_b') {
-        return basePosition + 2;
-      }
-    }
-
-    return '?';
   };
 
   // Render a single match tile
   const MatchTile = ({ match }) => {
     const statusColor = getStatusColor(match.status);
-    const playerA = getParticipantInfo(
-      match.participant_a,
-      match.match_number,
-      'participant_a',
-      match.round
-    );
-    const playerB = getParticipantInfo(
-      match.participant_b,
-      match.match_number,
-      'participant_b',
-      match.round
-    );
+    const playerA = getParticipantInfo(match.participant_a);
+    const playerB = getParticipantInfo(match.participant_b);
 
-    // Can only score if match is ready and both players are actual participants (not placeholders)
+    // Can only score if match is ready and both players are actual participants (not placeholders or byes)
     const canScore =
       match.status === 'ready' &&
       !playerA.isPlaceholder &&
-      !playerB.isPlaceholder;
+      !playerB.isPlaceholder &&
+      !playerA.isBye &&
+      !playerB.isBye;
 
     return (
       <div
@@ -203,13 +183,14 @@ const MonradTournamentView = ({
         {/* Players */}
         <div className='space-y-2 mb-4'>
           <div className='flex items-center justify-between'>
-            <div className='flex items-center space-x-2'>
-              <span className='text-sm font-medium text-gray-500'>
-                #{playerA.seed}
-              </span>
+            <div className='flex items-center'>
               <span
                 className={`font-medium ${
-                  playerA.isPlaceholder ? 'text-gray-400 italic' : ''
+                  playerA.isPlaceholder
+                    ? 'text-gray-400 italic'
+                    : playerA.isBye
+                    ? 'text-orange-600 font-semibold'
+                    : ''
                 }`}
               >
                 {playerA.name}
@@ -225,13 +206,14 @@ const MonradTournamentView = ({
           <div className='text-center text-gray-400 text-sm'>vs</div>
 
           <div className='flex items-center justify-between'>
-            <div className='flex items-center space-x-2'>
-              <span className='text-sm font-medium text-gray-500'>
-                #{playerB.seed}
-              </span>
+            <div className='flex items-center'>
               <span
                 className={`font-medium ${
-                  playerB.isPlaceholder ? 'text-gray-400 italic' : ''
+                  playerB.isPlaceholder
+                    ? 'text-gray-400 italic'
+                    : playerB.isBye
+                    ? 'text-orange-600 font-semibold'
+                    : ''
                 }`}
               >
                 {playerB.name}
