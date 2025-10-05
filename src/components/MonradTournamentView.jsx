@@ -67,8 +67,190 @@ const MonradTournamentView = ({
     }
   };
 
+  // Get the source match for a seed position in a given round
+  const getSourceMatch = (seedPosition, round, participantCount) => {
+    // This maps seed positions to their source matches based on Monrad logic
+    // For 8-player tournament structure
+    if (participantCount === 8) {
+      if (round === 2) {
+        const seedToMatch = {
+          1: { match: 'R1M1', result: 'Winner' }, // Winner of 1v8
+          4: { match: 'R1M4', result: 'Winner' }, // Winner of 4v5
+          2: { match: 'R1M2', result: 'Winner' }, // Winner of 2v7
+          3: { match: 'R1M3', result: 'Winner' }, // Winner of 3v6
+          5: { match: 'R1M4', result: 'Loser' }, // Loser of 4v5
+          8: { match: 'R1M1', result: 'Loser' }, // Loser of 1v8
+          6: { match: 'R1M3', result: 'Loser' }, // Loser of 3v6
+          7: { match: 'R1M2', result: 'Loser' }, // Loser of 2v7
+        };
+        return seedToMatch[seedPosition];
+      }
+      if (round === 3) {
+        const seedToMatch = {
+          1: { match: 'R2M1', result: 'Winner' }, // Winner of R2M1
+          2: { match: 'R2M2', result: 'Winner' }, // Winner of R2M2
+          3: { match: 'R2M1', result: 'Loser' }, // Loser of R2M1
+          4: { match: 'R2M2', result: 'Loser' }, // Loser of R2M2
+          5: { match: 'R2M3', result: 'Winner' }, // Winner of R2M3
+          6: { match: 'R2M4', result: 'Winner' }, // Winner of R2M4
+          7: { match: 'R2M3', result: 'Loser' }, // Loser of R2M3
+          8: { match: 'R2M4', result: 'Loser' }, // Loser of R2M4
+        };
+        return seedToMatch[seedPosition];
+      }
+    }
+
+    // For 16-player tournament structure
+    if (participantCount === 16) {
+      if (round === 2) {
+        const seedToMatch = {
+          1: { match: 'R1M1', result: 'Winner' }, // Winner of 1v16
+          8: { match: 'R1M8', result: 'Winner' }, // Winner of 8v9
+          2: { match: 'R1M2', result: 'Winner' }, // Winner of 2v15
+          7: { match: 'R1M7', result: 'Winner' }, // Winner of 7v10
+          3: { match: 'R1M3', result: 'Winner' }, // Winner of 3v14
+          6: { match: 'R1M6', result: 'Winner' }, // Winner of 6v11
+          4: { match: 'R1M4', result: 'Winner' }, // Winner of 4v13
+          5: { match: 'R1M5', result: 'Winner' }, // Winner of 5v12
+          9: { match: 'R1M8', result: 'Loser' }, // Loser of 8v9
+          16: { match: 'R1M1', result: 'Loser' }, // Loser of 1v16
+          10: { match: 'R1M7', result: 'Loser' }, // Loser of 7v10
+          15: { match: 'R1M2', result: 'Loser' }, // Loser of 2v15
+          11: { match: 'R1M6', result: 'Loser' }, // Loser of 6v11
+          14: { match: 'R1M3', result: 'Loser' }, // Loser of 3v14
+          12: { match: 'R1M5', result: 'Loser' }, // Loser of 5v12
+          13: { match: 'R1M4', result: 'Loser' }, // Loser of 4v13
+        };
+        return seedToMatch[seedPosition];
+      }
+      if (round === 3) {
+        const seedToMatch = {
+          1: { match: 'R2M1', result: 'Winner' }, // Winner of R2M1
+          4: { match: 'R2M4', result: 'Winner' }, // Winner of R2M4
+          2: { match: 'R2M2', result: 'Winner' }, // Winner of R2M2
+          3: { match: 'R2M3', result: 'Winner' }, // Winner of R2M3
+          5: { match: 'R2M5', result: 'Winner' }, // Winner of R2M5
+          8: { match: 'R2M8', result: 'Winner' }, // Winner of R2M8
+          6: { match: 'R2M6', result: 'Winner' }, // Winner of R2M6
+          7: { match: 'R2M7', result: 'Winner' }, // Winner of R2M7
+          9: { match: 'R2M5', result: 'Loser' }, // Loser of R2M5
+          16: { match: 'R2M1', result: 'Loser' }, // Loser of R2M1
+          10: { match: 'R2M6', result: 'Loser' }, // Loser of R2M6
+          15: { match: 'R2M2', result: 'Loser' }, // Loser of R2M2
+          11: { match: 'R2M7', result: 'Loser' }, // Loser of R2M7
+          14: { match: 'R2M3', result: 'Loser' }, // Loser of R2M3
+          12: { match: 'R2M8', result: 'Loser' }, // Loser of R2M8
+          13: { match: 'R2M4', result: 'Loser' }, // Loser of R2M4
+        };
+        return seedToMatch[seedPosition];
+      }
+      if (round === 4) {
+        const seedToMatch = {
+          1: { match: 'R3M1', result: 'Winner' }, // Winner of R3M1
+          2: { match: 'R3M2', result: 'Winner' }, // Winner of R3M2
+          3: { match: 'R3M1', result: 'Loser' }, // Loser of R3M1
+          4: { match: 'R3M2', result: 'Loser' }, // Loser of R3M2
+          5: { match: 'R3M3', result: 'Winner' }, // Winner of R3M3
+          6: { match: 'R3M4', result: 'Winner' }, // Winner of R3M4
+          7: { match: 'R3M3', result: 'Loser' }, // Loser of R3M3
+          8: { match: 'R3M4', result: 'Loser' }, // Loser of R3M4
+          9: { match: 'R3M5', result: 'Winner' }, // Winner of R3M5
+          10: { match: 'R3M6', result: 'Winner' }, // Winner of R3M6
+          11: { match: 'R3M5', result: 'Loser' }, // Loser of R3M5
+          12: { match: 'R3M6', result: 'Loser' }, // Loser of R3M6
+          13: { match: 'R3M7', result: 'Winner' }, // Winner of R3M7
+          14: { match: 'R3M8', result: 'Winner' }, // Winner of R3M8
+          15: { match: 'R3M7', result: 'Loser' }, // Loser of R3M7
+          16: { match: 'R3M8', result: 'Loser' }, // Loser of R3M8
+        };
+        return seedToMatch[seedPosition];
+      }
+    }
+
+    // For 32-player tournament structure
+    if (participantCount === 32) {
+      if (round === 2) {
+        const seedToMatch = {
+          1: { match: 'R1M1', result: 'Winner' }, // Winner of 1v32
+          16: { match: 'R1M16', result: 'Winner' }, // Winner of 16v17
+          2: { match: 'R1M2', result: 'Winner' }, // Winner of 2v31
+          15: { match: 'R1M15', result: 'Winner' }, // Winner of 15v18
+          3: { match: 'R1M3', result: 'Winner' }, // Winner of 3v30
+          14: { match: 'R1M14', result: 'Winner' }, // Winner of 14v19
+          4: { match: 'R1M4', result: 'Winner' }, // Winner of 4v29
+          13: { match: 'R1M13', result: 'Winner' }, // Winner of 13v20
+          5: { match: 'R1M5', result: 'Winner' }, // Winner of 5v28
+          12: { match: 'R1M12', result: 'Winner' }, // Winner of 12v21
+          6: { match: 'R1M6', result: 'Winner' }, // Winner of 6v27
+          11: { match: 'R1M11', result: 'Winner' }, // Winner of 11v22
+          7: { match: 'R1M7', result: 'Winner' }, // Winner of 7v26
+          10: { match: 'R1M10', result: 'Winner' }, // Winner of 10v23
+          8: { match: 'R1M8', result: 'Winner' }, // Winner of 8v25
+          9: { match: 'R1M9', result: 'Winner' }, // Winner of 9v24
+          17: { match: 'R1M16', result: 'Loser' }, // Loser of 16v17
+          32: { match: 'R1M1', result: 'Loser' }, // Loser of 1v32
+          18: { match: 'R1M15', result: 'Loser' }, // Loser of 15v18
+          31: { match: 'R1M2', result: 'Loser' }, // Loser of 2v31
+          19: { match: 'R1M14', result: 'Loser' }, // Loser of 14v19
+          30: { match: 'R1M3', result: 'Loser' }, // Loser of 3v30
+          20: { match: 'R1M13', result: 'Loser' }, // Loser of 13v20
+          29: { match: 'R1M4', result: 'Loser' }, // Loser of 4v29
+          21: { match: 'R1M12', result: 'Loser' }, // Loser of 12v21
+          28: { match: 'R1M5', result: 'Loser' }, // Loser of 5v28
+          22: { match: 'R1M11', result: 'Loser' }, // Loser of 11v22
+          27: { match: 'R1M6', result: 'Loser' }, // Loser of 6v27
+          23: { match: 'R1M10', result: 'Loser' }, // Loser of 10v23
+          26: { match: 'R1M7', result: 'Loser' }, // Loser of 7v26
+          24: { match: 'R1M9', result: 'Loser' }, // Loser of 9v24
+          25: { match: 'R1M8', result: 'Loser' }, // Loser of 8v25
+        };
+        return seedToMatch[seedPosition];
+      }
+      if (round === 3) {
+        const seedToMatch = {
+          1: { match: 'R2M1', result: 'Winner' }, // Winner of R2M1
+          8: { match: 'R2M8', result: 'Winner' }, // Winner of R2M8
+          2: { match: 'R2M2', result: 'Winner' }, // Winner of R2M2
+          7: { match: 'R2M7', result: 'Winner' }, // Winner of R2M7
+          3: { match: 'R2M3', result: 'Winner' }, // Winner of R2M3
+          6: { match: 'R2M6', result: 'Winner' }, // Winner of R2M6
+          4: { match: 'R2M4', result: 'Winner' }, // Winner of R2M4
+          5: { match: 'R2M5', result: 'Winner' }, // Winner of R2M5
+          9: { match: 'R2M9', result: 'Winner' }, // Winner of R2M9
+          16: { match: 'R2M16', result: 'Winner' }, // Winner of R2M16
+          10: { match: 'R2M10', result: 'Winner' }, // Winner of R2M10
+          15: { match: 'R2M15', result: 'Winner' }, // Winner of R2M15
+          11: { match: 'R2M11', result: 'Winner' }, // Winner of R2M11
+          14: { match: 'R2M14', result: 'Winner' }, // Winner of R2M14
+          12: { match: 'R2M12', result: 'Winner' }, // Winner of R2M12
+          13: { match: 'R2M13', result: 'Winner' }, // Winner of R2M13
+          17: { match: 'R2M9', result: 'Loser' }, // Loser of R2M9
+          32: { match: 'R2M1', result: 'Loser' }, // Loser of R2M1
+          18: { match: 'R2M10', result: 'Loser' }, // Loser of R2M10
+          31: { match: 'R2M2', result: 'Loser' }, // Loser of R2M2
+          19: { match: 'R2M11', result: 'Loser' }, // Loser of R2M11
+          30: { match: 'R2M3', result: 'Loser' }, // Loser of R2M3
+          20: { match: 'R2M12', result: 'Loser' }, // Loser of R2M12
+          29: { match: 'R2M4', result: 'Loser' }, // Loser of R2M4
+          21: { match: 'R2M13', result: 'Loser' }, // Loser of R2M13
+          28: { match: 'R2M5', result: 'Loser' }, // Loser of R2M5
+          22: { match: 'R2M14', result: 'Loser' }, // Loser of R2M14
+          27: { match: 'R2M6', result: 'Loser' }, // Loser of R2M6
+          23: { match: 'R2M15', result: 'Loser' }, // Loser of R2M15
+          26: { match: 'R2M7', result: 'Loser' }, // Loser of R2M7
+          24: { match: 'R2M16', result: 'Loser' }, // Loser of R2M16
+          25: { match: 'R2M8', result: 'Loser' }, // Loser of R2M8
+        };
+        return seedToMatch[seedPosition];
+      }
+      // Add more rounds for 32-player as needed (Round 4, 5)
+    }
+
+    return null;
+  };
+
   // Get participant info including original seed in name
-  const getParticipantInfo = (participantRef) => {
+  const getParticipantInfo = (participantRef, matchRound) => {
     if (!participantRef) return { name: 'TBD', isPlaceholder: true };
 
     // Handle bye players
@@ -82,6 +264,20 @@ const MonradTournamentView = ({
 
     // Handle seed position placeholders
     if (participantRef.type === 'seed_position') {
+      const sourceMatch = getSourceMatch(
+        participantRef.seed,
+        matchRound,
+        participants.length
+      );
+
+      if (sourceMatch) {
+        return {
+          name: `${sourceMatch.result} ${sourceMatch.match}`,
+          isPlaceholder: true,
+        };
+      }
+
+      // Fallback to seed display if no mapping found
       return {
         name: `Seed ${participantRef.seed}`,
         isPlaceholder: true,
@@ -141,8 +337,8 @@ const MonradTournamentView = ({
   // Render a single match tile
   const MatchTile = ({ match }) => {
     const statusColor = getStatusColor(match.status);
-    const playerA = getParticipantInfo(match.participant_a);
-    const playerB = getParticipantInfo(match.participant_b);
+    const playerA = getParticipantInfo(match.participant_a, match.round);
+    const playerB = getParticipantInfo(match.participant_b, match.round);
 
     // Can only score if match is ready and both players are actual participants (not placeholders or byes)
     const canScore =
