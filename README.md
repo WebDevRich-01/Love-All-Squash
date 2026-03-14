@@ -4,7 +4,8 @@ A professional squash match scoring and tracking Progressive Web App with enhanc
 
 ## Features
 
-- Professional squash scoring system
+- Professional squash scoring system with serve tracking and let/stroke decisions
+- Tournament management (Single Elimination, Round Robin, Monrad, Pools + Knockout)
 - Match history tracking
 - Event management
 - PWA capabilities (installable, offline support)
@@ -17,6 +18,8 @@ A professional squash match scoring and tracking Progressive Web App with enhanc
 - Vite
 - Tailwind CSS
 - Zustand for state management
+- React Router DOM v7
+- @dnd-kit for drag-and-drop (tournament brackets)
 - PWA with Workbox
 
 ## Development Setup
@@ -72,11 +75,23 @@ The `netlify.toml` file is already configured with proper redirects and caching 
 
 ```
 src/
-├── components/     # React components
-├── hooks/         # Custom React hooks
-├── stores/        # Zustand state management
-├── utils/         # Utility functions
-└── pages/         # Page components
+├── components/         # React components
+│   ├── GameScreen.jsx          # Live match scoring interface
+│   ├── GameSetupScreen.jsx     # Match configuration
+│   ├── GameWinModal.jsx        # Game/match result modal
+│   ├── LandingScreen.jsx       # Home screen
+│   ├── MatchHistoryScreen.jsx  # Match history list
+│   ├── TournamentScreen.jsx    # Tournament list
+│   ├── TournamentDetailScreen.jsx
+│   ├── TournamentStandings.jsx
+│   ├── MonradTournamentView.jsx
+│   └── ...
+├── hooks/              # Custom React hooks (e.g. useWakeLock)
+├── stores/
+│   └── gameStore.js    # Zustand store — all match and game state
+├── utils/
+│   └── api.js          # API abstraction (localStorage in dev, HTTP in prod)
+└── pages/              # Page-level route components
 ```
 
 ## Available Scripts
