@@ -57,7 +57,7 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
         // If handleGameCompletion is synchronous or returns a non-promise
         handleGameCompletion();
       } catch (error) {
-        console.error('Error in game completion:', error);
+        if (import.meta.env.DEV) console.error('Error in game completion:', error);
         // Continue showing the modal even if there's an error
       }
 
@@ -90,7 +90,7 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
     if (onFinishMatch) {
       await onFinishMatch(); // Notify App component that match is finished
     } else {
-      console.log('🔥 No onFinishMatch callback provided');
+      if (import.meta.env.DEV) console.warn('No onFinishMatch callback provided');
     }
 
     // THEN reset the game state and navigate

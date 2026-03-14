@@ -1,81 +1,30 @@
 import { useState, useEffect } from "react";
 import useGameStore from "../stores/gameStore";
 import PropTypes from "prop-types";
-import api from "../utils/api";
+import api, { API_URL } from "../utils/api";
 import ColorDropdown from "./ColorDropdown";
 
-const saveEventToLocalStorage = (eventName) => {
+const isDevelopment = import.meta.env.VITE_USE_LOCAL_STORAGE === "true";
+
+const saveEvent = (eventName) => {
   if (!eventName || eventName.trim() === "") return;
 
-  try {
-    // Debug environment variables
-    console.log("Environment variables in saveEventToLocalStorage:", {
-      USE_LOCAL_STORAGE: import.meta.env.VITE_USE_LOCAL_STORAGE,
-      API_URL: import.meta.env.VITE_API_URL,
-    });
-
-    // Check if we're in development mode using environment variable
-    const envValue = import.meta.env.VITE_USE_LOCAL_STORAGE;
-    const isDevelopment = envValue === "true";
-
-    console.log("isDevelopment calculation:", {
-      envValue,
-      isDevelopment,
-      typeOfEnvValue: typeof envValue,
-    });
-
-    if (isDevelopment) {
-      // Get existing events
-      const storedEvents = localStorage.getItem("events");
-      let events = storedEvents ? JSON.parse(storedEvents) : [];
-
-      // Check if event already exists
-      if (!events.some((event) => event.name === eventName)) {
-        // Add new event
-        events.push({
-          name: eventName,
-          date: new Date().toISOString(),
-          id: Date.now().toString(), // Simple unique ID
-        });
-
-        // Save back to local storage
-        localStorage.setItem("events", JSON.stringify(events));
-        console.log("Saved event to local storage:", eventName);
-      }
-    } else {
-      // In production, save to API
-      // Use hardcoded fallback if environment variable is missing
-      const API_URL =
-        import.meta.env.VITE_API_URL ||
-        "https://squash-marker-backend.onrender.com";
-      console.log(`Attempting to save event to API at: ${API_URL}/api/events`);
-
-      fetch(`${API_URL}/api/events`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: eventName,
-          date: new Date().toISOString(),
-        }),
-      })
-        .then((response) => {
-          console.log("API response status:", response.status);
-          if (!response.ok) {
-            throw new Error("Failed to save event to API");
-          }
-          return response.json();
-        })
-        .then((data) => {
-          console.log("Saved event to API:", data);
-        })
-        .catch((error) => {
-          console.error("Error saving event to API:", error);
-        });
+  if (isDevelopment) {
+    const storedEvents = localStorage.getItem("events");
+    const events = storedEvents ? JSON.parse(storedEvents) : [];
+    if (!events.some((e) => e.name === eventName)) {
+      events.push({ name: eventName, date: new Date().toISOString(), id: Date.now().toString() });
+      localStorage.setItem("events", JSON.stringify(events));
     }
-  } catch (error) {
-    console.error("Error saving event:", error);
+  } else {
+    // Fire-and-forget — event creation is also handled server-side on match save
+    fetch(`${API_URL}/api/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: eventName, date: new Date().toISOString() }),
+    }).catch((err) => {
+      if (import.meta.env.DEV) console.error("Error pre-saving event:", err);
+    });
   }
 };
 
@@ -124,7 +73,7 @@ export default function GameSetupScreen({
         const names = await api.getEventNames();
         setEventNames(names);
       } catch (error) {
-        console.error("Error fetching event names:", error);
+        if (import.meta.env.DEV) console.error("Error fetching event names:", error);
       }
     };
 
@@ -146,7 +95,7 @@ export default function GameSetupScreen({
     e.preventDefault();
 
     if (settings.eventName && settings.eventName.trim() !== "") {
-      saveEventToLocalStorage(settings.eventName);
+      saveEvent(settings.eventName);
     }
 
     if (isEditing && onReturnToMatch) {

@@ -23,7 +23,6 @@ export default function MatchHistoryScreen({ onBack }) {
     try {
       setLoading(true);
       const response = await api.getMatches();
-      console.log("Fetched matches:", response); // Debug log
       setMatches(response);
 
       // Extract unique event names
@@ -34,12 +33,11 @@ export default function MatchHistoryScreen({ onBack }) {
             .filter((name) => name && name.trim() !== "")
         ),
       ];
-      console.log("Unique events:", uniqueEvents); // Debug log
       setEventNames(uniqueEvents);
 
       setError(null);
     } catch (err) {
-      console.error("Error fetching matches:", err);
+      if (import.meta.env.DEV) console.error("Error fetching matches:", err);
       setError("Failed to load matches. Please try again.");
     } finally {
       setLoading(false);
@@ -80,7 +78,7 @@ export default function MatchHistoryScreen({ onBack }) {
           setEventNames(uniqueEvents);
         }
       } catch (error) {
-        console.error("Error fetching events:", error);
+        if (import.meta.env.DEV) console.error("Error fetching events:", error);
       }
     };
 
@@ -111,7 +109,7 @@ export default function MatchHistoryScreen({ onBack }) {
         setError("Failed to delete match. Please try again.");
       }
     } catch (err) {
-      console.error("Error deleting match:", err);
+      if (import.meta.env.DEV) console.error("Error deleting match:", err);
       setError("Failed to delete match. Please try again.");
     } finally {
       setIsDeleting(false);

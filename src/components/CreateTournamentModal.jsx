@@ -129,7 +129,7 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
       const formats = await api.getTournamentFormats();
       setAvailableFormats(formats);
     } catch (err) {
-      console.error('Error loading formats:', err);
+      if (import.meta.env.DEV) console.error('Error loading formats:', err);
       setError('Failed to load tournament formats');
     }
   };
@@ -257,16 +257,17 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
       const tournamentData = {
         name: formData.name.trim(),
         format: formData.format,
-        venue: formData.venue.trim(),
-        description: formData.description.trim(),
-        start_date: formData.start_date || null,
-        participants: formData.participants,
+        ...(formData.venue.trim() && { venue: formData.venue.trim() }),
+        ...(formData.description.trim() && { description: formData.description.trim() }),
+        ...(formData.start_date && { start_date: formData.start_date }),
+        // Strip the frontend-only `id` field used for drag-and-drop
+        participants: formData.participants.map(({ id, ...p }) => p),
         config: getDefaultConfig(formData.format),
       };
 
       await onSubmit(tournamentData);
     } catch (err) {
-      console.error('Error creating tournament:', err);
+      if (import.meta.env.DEV) console.error('Error creating tournament:', err);
       setError(err.message || 'Failed to create tournament');
     } finally {
       setLoading(false);

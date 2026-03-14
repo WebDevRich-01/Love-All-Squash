@@ -30,7 +30,7 @@ export const useWakeLock = () => {
 
       return true;
     } catch (err) {
-      console.error(`Failed to request wake lock: ${err.name}, ${err.message}`);
+      if (import.meta.env.DEV) console.error(`Failed to request wake lock: ${err.name}, ${err.message}`);
       setIsActive(false);
       return false;
     }
@@ -43,9 +43,7 @@ export const useWakeLock = () => {
         wakeLockRef.current = null;
         setIsActive(false);
       } catch (err) {
-        console.error(
-          `Failed to release wake lock: ${err.name}, ${err.message}`
-        );
+        if (import.meta.env.DEV) console.error(`Failed to release wake lock: ${err.name}, ${err.message}`);
       }
     }
   };

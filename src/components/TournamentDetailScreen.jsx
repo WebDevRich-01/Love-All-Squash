@@ -39,7 +39,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       const playableData = await api.getPlayableTournamentMatches(tournamentId);
       setPlayableMatches(playableData);
     } catch (err) {
-      console.error('Error loading tournament:', err);
+      if (import.meta.env.DEV) console.error('Error loading tournament:', err);
       setError('Failed to load tournament data');
     } finally {
       setLoading(false);

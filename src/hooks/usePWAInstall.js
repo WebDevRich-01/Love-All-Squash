@@ -58,7 +58,7 @@ export const usePWAInstall = () => {
       setDeferredPrompt(null);
       setIsInstallable(false);
       setIsInstalled(true);
-      console.log("PWA was installed successfully");
+      if (import.meta.env.DEV) console.log("PWA was installed successfully");
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -93,10 +93,10 @@ export const usePWAInstall = () => {
       const { outcome } = await deferredPrompt.userChoice;
 
       if (outcome === "accepted") {
-        console.log("User accepted the install prompt");
+        if (import.meta.env.DEV) console.log("User accepted the install prompt");
         setIsInstalled(true);
       } else {
-        console.log("User dismissed the install prompt");
+        if (import.meta.env.DEV) console.log("User dismissed the install prompt");
       }
 
       // Clear the deferredPrompt for next time
@@ -105,7 +105,7 @@ export const usePWAInstall = () => {
 
       return outcome === "accepted";
     } catch (error) {
-      console.error("Error during app installation:", error);
+      if (import.meta.env.DEV) console.error("Error during app installation:", error);
       return false;
     }
   };

@@ -20,7 +20,7 @@ export default function LandingScreen({
   const handleInstallClick = async () => {
     const success = await installApp();
     if (success) {
-      console.log('App installed successfully!');
+      if (import.meta.env.DEV) console.log('App installed successfully!');
     }
   };
   return (

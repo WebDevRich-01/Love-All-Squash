@@ -1,5 +1,23 @@
 // API utility that switches between localStorage and real API based on environment
 
+// Check if we're in development mode
+const isDevelopment = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+// Admin token storage (sessionStorage — cleared when tab closes)
+export const getAdminToken = () => sessionStorage.getItem('adminToken');
+export const setAdminToken = (token) => sessionStorage.setItem('adminToken', token);
+export const clearAdminToken = () => sessionStorage.removeItem('adminToken');
+
+// Build auth headers for write operations
+const authHeaders = () => {
+  const token = getAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_GET_RETRIES = 2;
+
 // Helper to get matches from localStorage
 const getStoredMatches = () => {
   const matches = localStorage.getItem('squash_matches');
@@ -17,9 +35,47 @@ const getStoredEvents = () => {
   return events ? JSON.parse(events) : [];
 };
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+/**
+ * fetch() with a hard timeout. Throws if the request exceeds timeoutMs.
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return response;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * GET-only: retries up to maxRetries times with exponential backoff (1s, 2s…).
+ * Only retries on network errors or 5xx responses.
+ */
+async function fetchWithRetry(url, maxRetries = MAX_GET_RETRIES) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
+    try {
+      const response = await fetchWithTimeout(url);
+      // Don't retry on 4xx – those are client errors
+      if (response.status >= 400 && response.status < 500) return response;
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
 
 const api = {
   // Tournament methods
@@ -29,54 +85,42 @@ const api = {
         setTimeout(() => {
           resolve([
             { id: 'single_elimination', name: 'Single Elimination' },
-            { id: 'round_robin', name: 'Round Robin' },
-            { id: 'monrad', name: 'Monrad / Progressive Consolation' },
-            { id: 'pools_knockout', name: 'Pools → Knockout' },
+            { id: 'monrad', name: 'Monrad (Swiss)' },
           ]);
         }, 300);
       });
-    } else {
-      try {
-        const response = await fetch(`${API_URL}/api/tournaments/formats`);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching tournament formats:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/tournaments/formats`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   createTournament: async (tournamentData) => {
     if (isDevelopment) {
       return new Promise((resolve) => {
         setTimeout(() => {
-          const tournament = {
+          resolve({
             ...tournamentData,
             _id: `tournament_${Date.now()}`,
             status: 'active',
             created_at: new Date().toISOString(),
-          };
-          resolve(tournament);
+          });
         }, 500);
       });
-    } else {
-      try {
-        const response = await fetch(`${API_URL}/api/tournaments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tournamentData),
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `API error: ${response.status}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error creating tournament:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithTimeout(`${API_URL}/api/tournaments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(tournamentData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData.details
+        ? `: ${errorData.details.map((d) => `${d.field || 'unknown'}: ${d.message}`).join('; ')}`
+        : '';
+      throw new Error((errorData.error || `API error: ${response.status}`) + detail);
+    }
+    return response.json();
   },
 
   getTournaments: async () => {
@@ -87,16 +131,10 @@ const api = {
           resolve(tournaments ? JSON.parse(tournaments) : []);
         }, 300);
       });
-    } else {
-      try {
-        const response = await fetch(`${API_URL}/api/tournaments`);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching tournaments:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/tournaments`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   getTournament: async (id) => {
@@ -118,101 +156,57 @@ const api = {
           }
         }, 300);
       });
-    } else {
-      try {
-        const response = await fetch(`${API_URL}/api/tournaments/${id}`);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching tournament:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/tournaments/${id}`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   getTournamentStandings: async (id) => {
     if (isDevelopment) {
       return new Promise((resolve) => {
         setTimeout(() => {
-          resolve({
-            type: 'bracket',
-            currentRound: 1,
-            standings: [],
-          });
+          resolve({ type: 'bracket', currentRound: 1, standings: [] });
         }, 300);
       });
-    } else {
-      try {
-        const response = await fetch(
-          `${API_URL}/api/tournaments/${id}/standings`
-        );
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching tournament standings:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(
+      `${API_URL}/api/tournaments/${id}/standings`
+    );
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   getPlayableTournamentMatches: async (tournamentId) => {
     if (isDevelopment) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve([]);
-        }, 300);
-      });
-    } else {
-      try {
-        const response = await fetch(
-          `${API_URL}/api/tournaments/${tournamentId}/matches/playable`
-        );
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching playable matches:', error);
-        throw error;
-      }
+      return new Promise((resolve) => setTimeout(() => resolve([]), 300));
     }
+    const response = await fetchWithRetry(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/playable`
+    );
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   submitTournamentMatchResult: async (tournamentId, matchId, result) => {
-    console.log('submitTournamentMatchResult called with:', {
-      tournamentId,
-      matchId,
-      result,
-    });
-    console.log('isDevelopment:', isDevelopment);
-    console.log(
-      'VITE_USE_LOCAL_STORAGE:',
-      import.meta.env.VITE_USE_LOCAL_STORAGE
-    );
-
     if (isDevelopment) {
-      console.log('Using mock response (development mode)');
       return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: true, tournament_complete: false });
-        }, 500);
+        setTimeout(() => resolve({ success: true, tournament_complete: false }), 500);
       });
-    } else {
-      console.log('Making actual API call to backend');
-      try {
-        const response = await fetch(
-          `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(result),
-          }
-        );
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error submitting tournament match result:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(result),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
   },
 
   deleteTournament: async (id) => {
@@ -221,104 +215,67 @@ const api = {
         setTimeout(() => {
           const tournaments = localStorage.getItem('tournaments');
           const tournamentList = tournaments ? JSON.parse(tournaments) : [];
-          const updatedTournaments = tournamentList.filter((t) => t._id !== id);
           localStorage.setItem(
             'tournaments',
-            JSON.stringify(updatedTournaments)
+            JSON.stringify(tournamentList.filter((t) => t._id !== id))
           );
           resolve({ success: true });
         }, 300);
       });
-    } else {
-      try {
-        const response = await fetch(`${API_URL}/api/tournaments/${id}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        console.error('Error deleting tournament:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithTimeout(`${API_URL}/api/tournaments/${id}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders() },
+    });
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   // Get all matches
   getMatches: async () => {
     if (isDevelopment) {
-      // Use localStorage in development
       return new Promise((resolve) => {
-        setTimeout(() => {
-          const matches = getStoredMatches();
-          resolve(matches);
-        }, 300);
+        setTimeout(() => resolve(getStoredMatches()), 300);
       });
-    } else {
-      // Use real API in production
-      try {
-        const response = await fetch(`${API_URL}/api/matches`);
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error('Error fetching matches from API:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/matches`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   // Get a specific match
   getMatch: async (id) => {
     if (isDevelopment) {
-      // Use localStorage in development
       return new Promise((resolve, reject) => {
         setTimeout(() => {
-          const matches = getStoredMatches();
-          const match = matches.find((m) => m._id === id);
-          if (match) {
-            resolve(match);
-          } else {
-            reject(new Error('Match not found'));
-          }
+          const match = getStoredMatches().find((m) => m._id === id);
+          if (match) resolve(match);
+          else reject(new Error('Match not found'));
         }, 300);
       });
-    } else {
-      // Use real API in production
-      try {
-        const response = await fetch(`${API_URL}/api/matches/${id}`);
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching match from API:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/matches/${id}`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return response.json();
   },
 
   // Save a match
   saveMatch: async (matchData) => {
     if (isDevelopment) {
-      // Use localStorage in development
       return new Promise((resolve) => {
         setTimeout(() => {
           const matches = getStoredMatches();
           const newMatch = {
             ...matchData,
-            _id: `match_${Date.now()}`, // Generate a simple ID
+            _id: `match_${Date.now()}`,
             date: new Date().toISOString(),
           };
-
-          matches.unshift(newMatch); // Add to beginning of array
+          matches.unshift(newMatch);
           saveStoredMatches(matches);
 
-          // If there's an event name, save it to events storage too
           if (matchData.eventName && matchData.eventName.trim() !== '') {
             const events = getStoredEvents();
-            if (!events.some((event) => event.name === matchData.eventName)) {
+            if (!events.some((e) => e.name === matchData.eventName)) {
               events.push({
                 name: matchData.eventName,
                 date: new Date().toISOString(),
@@ -331,112 +288,71 @@ const api = {
           resolve(newMatch);
         }, 300);
       });
-    } else {
-      // Use real API in production
-      try {
-        // Save the match (events are created separately when match is started, not when completed)
-        const response = await fetch(`${API_URL}/api/matches`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(matchData),
-        });
-
-        if (!response.ok) {
-          // Get more details about the error
-          const errorText = await response.text();
-          console.error(`API error (${response.status}):`, errorText);
-          throw new Error(`API error: ${response.status} - ${errorText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Error saving match to API:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithTimeout(`${API_URL}/api/matches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(matchData),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => String(response.status));
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+    return response.json();
   },
 
   // Delete a match
   deleteMatch: async (id) => {
     if (isDevelopment) {
-      // Use localStorage in development
       return new Promise((resolve) => {
         setTimeout(() => {
           const matches = getStoredMatches();
-          const updatedMatches = matches.filter((match) => match._id !== id);
-          const success = updatedMatches.length < matches.length;
-
-          if (success) {
-            saveStoredMatches(updatedMatches);
+          const updated = matches.filter((m) => m._id !== id);
+          if (updated.length < matches.length) {
+            saveStoredMatches(updated);
             resolve({ success: true });
           } else {
             resolve({ success: false, error: 'Match not found' });
           }
         }, 300);
       });
-    } else {
-      // Use real API in production
-      try {
-        const response = await fetch(`${API_URL}/api/matches/${id}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        return { success: true };
-      } catch (error) {
-        console.error('Error deleting match from API:', error);
-        return { success: false, error: error.message };
-      }
+    }
+    try {
+      const response = await fetchWithTimeout(`${API_URL}/api/matches/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   },
 
   // Get unique event names
   getEventNames: async () => {
     if (isDevelopment) {
-      // Use localStorage in development
       return new Promise((resolve) => {
         setTimeout(() => {
-          // First check the events storage
           const storedEvents = localStorage.getItem('events');
           if (storedEvents) {
-            const events = JSON.parse(storedEvents);
-            const eventNames = events.map((event) => event.name);
-            resolve(eventNames);
+            resolve(JSON.parse(storedEvents).map((e) => e.name));
             return;
           }
-
-          // Fallback to extracting from matches
-          const matches = getStoredMatches();
           const eventNames = [
             ...new Set(
-              matches
-                .map((match) => match.eventName)
-                .filter((name) => name && name.trim() !== '')
+              getStoredMatches()
+                .map((m) => m.eventName)
+                .filter((n) => n && n.trim() !== '')
             ),
           ];
           resolve(eventNames);
         }, 300);
       });
-    } else {
-      // Use real API in production
-      try {
-        const response = await fetch(`${API_URL}/api/events`);
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        const data = await response.json();
-        const eventNames = data.map((event) => event.name);
-        return eventNames;
-      } catch (error) {
-        console.error('Error fetching events from API:', error);
-        throw error;
-      }
     }
+    const response = await fetchWithRetry(`${API_URL}/api/events`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const data = await response.json();
+    return data.map((event) => event.name);
   },
 };
 

@@ -174,6 +174,7 @@ const useGameStore = create((set, get) => ({
 
   addPoint: (playerNum) =>
     set((state) => {
+      if (state.matchWon) return state;
       const player = `player${playerNum}`;
       const opponent = `player${playerNum === 1 ? 2 : 1}`;
       const newScore = state[player].score + 1;
@@ -291,39 +292,6 @@ const useGameStore = create((set, get) => ({
       };
     }),
 
-  resetGame: () =>
-    set(() => ({
-      player1: {
-        name: '',
-        color: 'border-red-500',
-        score: 0,
-        serving: true,
-        serveSide: 'R',
-      },
-      player2: {
-        name: '',
-        color: 'border-blue-500',
-        score: 0,
-        serving: false,
-        serveSide: 'R',
-      },
-      currentGame: 1,
-      gameScores: [],
-      matchWon: false,
-      matchSaved: false,
-      eventName: '',
-      scoreHistory: [
-        {
-          type: 'initial',
-          player1Score: 0,
-          player2Score: 0,
-          initialServeSide: 'R',
-          servingPlayer: 'player1',
-          timestamp: getUniqueTimestamp(),
-        },
-      ],
-    })),
-
   undoLastPoint: () =>
     set((state) => {
       if (state.scoreHistory.length <= 1) return state;
@@ -332,9 +300,8 @@ const useGameStore = create((set, get) => ({
       const lastEntry = state.scoreHistory[state.scoreHistory.length - 1];
       let newHistory = state.scoreHistory.slice(0, -1);
 
-      // If it's a let entry, remove the previous entry too
-      if (lastEntry.type === 'let' && newHistory.length > 1) {
-        newHistory = newHistory.slice(0, -1);
+      // If it's a let entry, just remove it — no score changes
+      if (lastEntry.type === 'let') {
         return { scoreHistory: newHistory };
       }
 
@@ -391,6 +358,7 @@ const useGameStore = create((set, get) => ({
             [player]: {
               ...state[player],
               serving: true,
+              serveSide: lastEntry.serveSide, // Restore serve side from history
             },
             [opponent]: {
               ...state[opponent],
@@ -443,9 +411,16 @@ const useGameStore = create((set, get) => ({
 
       switch (decision) {
         case 'let': {
-          // For a let, no score changes, just replay the rally
-          // No need to add anything to score history
-          return state; // Return unchanged state
+          // Record the let in history so it can be undone
+          const servingPlayer = state.player1.serving ? 'player1' : 'player2';
+          newHistory.push({
+            type: 'let',
+            player: servingPlayer,
+            score: state[servingPlayer].score,
+            serveSide: state[servingPlayer].serveSide,
+            timestamp: getUniqueTimestamp(),
+          });
+          return { scoreHistory: newHistory };
         }
 
         case 'stroke': {
@@ -764,7 +739,7 @@ const useGameStore = create((set, get) => ({
       set({ isSaving: false, matchSaved: true });
       return true;
     } catch (error) {
-      console.error('Error saving match:', error);
+      if (import.meta.env.DEV) console.error('Error saving match:', error);
       set({
         saveError: 'Failed to save match. Please try again.',
         isSaving: false,
@@ -784,7 +759,7 @@ const useGameStore = create((set, get) => ({
       const state = get();
       if (!state.tournamentMatchContext) {
         const savedSuccessfully = await get().saveCompletedMatch();
-        if (!savedSuccessfully) {
+        if (!savedSuccessfully && import.meta.env.DEV) {
           console.error('Match save failed');
         }
       }
@@ -830,45 +805,29 @@ const useGameStore = create((set, get) => ({
 
   // Update the updateGameSettings method to preserve the event name
   updateGameSettings: (settings) => {
-    console.log('=== UPDATING GAME SETTINGS ===');
-    console.log('Settings received:', settings);
-    console.log('Current state before update:', {
-      player1: get().player1,
-      player2: get().player2,
-    });
-
-    set((state) => {
-      const newState = {
-        matchSettings: {
-          ...state.matchSettings,
-          pointsToWin: settings.pointsToWin,
-          clearPoints: settings.clearPoints,
-          bestOf: settings.bestOf,
-        },
-        player1: {
-          ...state.player1,
-          name: settings.player1Name,
-          color: settings.player1Color,
-          // Don't update score or serving status
-        },
-        player2: {
-          ...state.player2,
-          name: settings.player2Name,
-          color: settings.player2Color,
-          // Don't update score or serving status
-        },
-        // Update or preserve the event name
-        eventName: settings.eventName || state.eventName || '',
-        // Don't reset currentGame, gameScores, or matchWon
-      };
-
-      console.log('New state after update:', {
-        player1: newState.player1,
-        player2: newState.player2,
-      });
-
-      return newState;
-    });
+    set((state) => ({
+      matchSettings: {
+        ...state.matchSettings,
+        pointsToWin: settings.pointsToWin,
+        clearPoints: settings.clearPoints,
+        bestOf: settings.bestOf,
+      },
+      player1: {
+        ...state.player1,
+        name: settings.player1Name,
+        color: settings.player1Color,
+        // Don't update score or serving status
+      },
+      player2: {
+        ...state.player2,
+        name: settings.player2Name,
+        color: settings.player2Color,
+        // Don't update score or serving status
+      },
+      // Update or preserve the event name
+      eventName: settings.eventName || state.eventName || '',
+      // Don't reset currentGame, gameScores, or matchWon
+    }));
   },
 }));
 

@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
+import AdminPasswordModal from './AdminPasswordModal';
 
 const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const pendingAction = useRef(null);
 
   useEffect(() => {
     loadTournaments();
@@ -20,7 +23,7 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
       setTournaments(data);
       setError(null);
     } catch (err) {
-      console.error('Error loading tournaments:', err);
+      if (import.meta.env.DEV) console.error('Error loading tournaments:', err);
       setError('Failed to load tournaments');
     } finally {
       setLoading(false);
@@ -30,15 +33,18 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
   const handleCreateTournament = async (tournamentData) => {
     try {
       const result = await api.createTournament(tournamentData);
-      await loadTournaments(); // Refresh the list
+      await loadTournaments();
       setShowCreateModal(false);
-
-      // Navigate directly to the new tournament
       if (result.tournament) {
         onNavigateToTournament(result.tournament._id);
       }
     } catch (err) {
-      console.error('Error creating tournament:', err);
+      if (import.meta.env.DEV) console.error('Error creating tournament:', err);
+      if (err.message?.includes('401') || err.message?.includes('Authentication')) {
+        pendingAction.current = () => handleCreateTournament(tournamentData);
+        setShowAdminModal(true);
+        return;
+      }
       throw err; // Let the modal handle the error display
     }
   };
@@ -54,11 +60,23 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
 
     try {
       await api.deleteTournament(tournamentId);
-      await loadTournaments(); // Refresh the list
+      await loadTournaments();
     } catch (err) {
-      console.error('Error deleting tournament:', err);
+      if (import.meta.env.DEV) console.error('Error deleting tournament:', err);
+      if (err.message?.includes('401') || err.message?.includes('Authentication')) {
+        pendingAction.current = () => handleDeleteTournament(tournamentId);
+        setShowAdminModal(true);
+        return;
+      }
       alert('Failed to delete tournament');
     }
+  };
+
+  const handleAdminAuthSuccess = () => {
+    setShowAdminModal(false);
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (action) action();
   };
 
   if (loading) {
@@ -175,6 +193,17 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
           <CreateTournamentModal
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreateTournament}
+          />
+        )}
+
+        {/* Admin password modal */}
+        {showAdminModal && (
+          <AdminPasswordModal
+            onSuccess={handleAdminAuthSuccess}
+            onCancel={() => {
+              setShowAdminModal(false);
+              pendingAction.current = null;
+            }}
           />
         )}
       </div>

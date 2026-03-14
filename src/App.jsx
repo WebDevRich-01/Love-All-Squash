@@ -14,6 +14,7 @@ import MatchHistoryScreen from './components/MatchHistoryScreen';
 import TournamentScreen from './components/TournamentScreen';
 import TournamentDetailScreen from './components/TournamentDetailScreen';
 import PWAUpdatePrompt from './components/PWAUpdatePrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 import useGameStore from './stores/gameStore';
 import api from './utils/api';
 
@@ -42,6 +43,7 @@ function App() {
   );
   const [hasActiveMatch, setHasActiveMatch] = useState(false);
   const [gameSettings, setGameSettings] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   // Check if there's an active match when the component mounts
   useEffect(() => {
@@ -54,13 +56,10 @@ function App() {
   }, []);
 
   const handleBackToSetup = (settingsFromGame) => {
-    // Store the settings in state
     setGameSettings({
       ...settingsFromGame,
-      eventName: settingsFromGame.eventName || '', // Ensure eventName is passed
+      eventName: settingsFromGame.eventName || '',
     });
-
-    // Navigate to the edit setup route
     navigate('/setup/edit');
   };
 
@@ -78,82 +77,73 @@ function App() {
     const gameState = useGameStore.getState();
     const tournamentMatchContext = gameState.tournamentMatchContext;
 
-    console.log('=== FINISHING MATCH ===');
-    console.log('Game state:', {
-      player1: gameState.player1,
-      player2: gameState.player2,
-      gameScores: gameState.gameScores,
-      tournamentMatchContext: tournamentMatchContext,
-    });
-
-    console.log('Player names debug:', {
-      player1Name: gameState.player1?.name,
-      player2Name: gameState.player2?.name,
-      player1Object: gameState.player1,
-      player2Object: gameState.player2,
-    });
+    setSubmitError(null);
 
     // If this was a tournament match, submit the result
     if (tournamentMatchContext) {
+      const player1Wins = gameState.gameScores.filter(
+        (s) => s.player1 > s.player2
+      ).length;
+      const player2Wins = gameState.gameScores.filter(
+        (s) => s.player2 > s.player1
+      ).length;
+
+      const winnerId =
+        player1Wins > player2Wins
+          ? tournamentMatchContext.player1Id
+          : tournamentMatchContext.player2Id;
+      const winnerName =
+        player1Wins > player2Wins
+          ? gameState.player1.name
+          : gameState.player2.name;
+      const loserId =
+        player1Wins > player2Wins
+          ? tournamentMatchContext.player2Id
+          : tournamentMatchContext.player1Id;
+      const loserName =
+        player1Wins > player2Wins
+          ? gameState.player2.name
+          : gameState.player1.name;
+
+      const matchResult = {
+        winner_id: winnerId,
+        winner_name: winnerName,
+        loser_id: loserId,
+        loser_name: loserName,
+        game_scores: gameState.gameScores,
+        walkover: false,
+        retired: false,
+      };
+
       try {
-        // Determine winner
-        const player1Wins = gameState.gameScores.filter(
-          (s) => s.player1 > s.player2
-        ).length;
-        const player2Wins = gameState.gameScores.filter(
-          (s) => s.player2 > s.player1
-        ).length;
-
-        console.log('Match results:', { player1Wins, player2Wins });
-
-        const winnerId =
-          player1Wins > player2Wins
-            ? tournamentMatchContext.player1Id
-            : tournamentMatchContext.player2Id;
-        const winnerName =
-          player1Wins > player2Wins
-            ? gameState.player1.name
-            : gameState.player2.name;
-        const loserId =
-          player1Wins > player2Wins
-            ? tournamentMatchContext.player2Id
-            : tournamentMatchContext.player1Id;
-        const loserName =
-          player1Wins > player2Wins
-            ? gameState.player2.name
-            : gameState.player1.name;
-
-        const matchResult = {
-          winner_id: winnerId,
-          winner_name: winnerName,
-          loser_id: loserId,
-          loser_name: loserName,
-          game_scores: gameState.gameScores,
-          walkover: false,
-          retired: false,
-        };
-
-        console.log('Submitting match result:', matchResult);
-
         await api.submitTournamentMatchResult(
           tournamentMatchContext.tournamentId,
           tournamentMatchContext.matchId,
           matchResult
         );
-
-        // Clear tournament context
-        setTournamentMatchContext(null);
-
-        // Navigate back to tournament
-        navigate(`/tournaments/${tournamentMatchContext.tournamentId}`);
       } catch (error) {
-        console.error('Error submitting tournament match result:', error);
-        // Still clear context and allow navigation
-        setTournamentMatchContext(null);
+        if (import.meta.env.DEV) console.error('Error submitting tournament match result:', error);
+        // Show the error and keep the user on the current screen so they can retry
+        setSubmitError(
+          'Failed to save the match result. Please check your connection and try again.'
+        );
+        return; // Don't navigate — let the user retry or skip
       }
+
+      setTournamentMatchContext(null);
+      setHasActiveMatch(false);
+      navigate(`/tournaments/${tournamentMatchContext.tournamentId}`);
+      return;
     }
 
     setHasActiveMatch(false);
+  };
+
+  const handleSkipAndExit = () => {
+    setSubmitError(null);
+    setTournamentMatchContext(null);
+    setHasActiveMatch(false);
+    navigate('/tournaments');
   };
 
   const handleBackToHome = () => {
@@ -165,10 +155,6 @@ function App() {
   };
 
   const handleScoreTournamentMatch = (matchContext) => {
-    console.log('=== STARTING TOURNAMENT MATCH ===');
-    console.log('Match context:', matchContext);
-
-    // Store tournament match context in game store for when match is completed
     setTournamentMatchContext({
       ...matchContext,
       player1Id:
@@ -177,8 +163,7 @@ function App() {
         matchContext.player2Id || matchContext.participant_b?.participant_id,
     });
 
-    // Set up the game with tournament match details
-    const gameSettings = {
+    const settings = {
       player1Name: matchContext.player1Name,
       player2Name: matchContext.player2Name,
       player1Color: 'border-red-500',
@@ -187,106 +172,126 @@ function App() {
       clearPoints: 2,
       bestOf: 5,
       player1Serving: true,
-      eventName: `Tournament Match`,
+      eventName: 'Tournament Match',
     };
 
-    console.log('Game settings:', gameSettings);
-    updateGameSettings(gameSettings);
+    updateGameSettings(settings);
     setHasActiveMatch(true);
     navigate('/game');
   };
 
   return (
-    <div className='h-full flex flex-col'>
-      <div className='mx-auto w-full h-full bg-white shadow-lg'>
-        <Routes>
-          <Route
-            path='/'
-            element={
-              <LandingScreen
-                onNewMatch={() => {
-                  // Reset game state for new match
-                  if (hasActiveMatch) {
-                    // If there's an active match, go to edit screen
-                    navigate('/setup/edit');
-                  } else {
-                    // Otherwise go to new match setup
-                    navigate('/setup');
-                  }
-                }}
-                onFindMatch={() => navigate('/history')}
-                onTournaments={() => navigate('/tournaments')}
-                hasActiveMatch={hasActiveMatch}
-              />
-            }
-          />
+    <ErrorBoundary>
+      <div className='h-full flex flex-col'>
+        <div className='mx-auto w-full h-full bg-white shadow-lg'>
 
-          <Route
-            path='/setup'
-            element={
-              <GameSetupScreen
-                initialSettings={null}
-                onStartMatch={handleStartMatch}
-                onBack={handleBackToHome}
-                isEditing={false}
-              />
-            }
-          />
+          {/* Tournament result submission error banner */}
+          {submitError && (
+            <div className='fixed inset-x-0 top-0 z-50 bg-red-600 text-white p-4 shadow-lg'>
+              <p className='font-medium mb-2'>{submitError}</p>
+              <div className='flex gap-3'>
+                <button
+                  onClick={handleFinishMatch}
+                  className='px-4 py-2 bg-white text-red-600 rounded font-medium text-sm'
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={handleSkipAndExit}
+                  className='px-4 py-2 border border-white rounded text-sm'
+                >
+                  Skip and exit
+                </button>
+              </div>
+            </div>
+          )}
 
-          <Route
-            path='/setup/edit'
-            element={
-              <GameSetupScreen
-                initialSettings={gameSettings}
-                onReturnToMatch={handleReturnToMatch}
-                onBack={handleBackToHome}
-                isEditing={true}
-              />
-            }
-          />
+          <Routes>
+            <Route
+              path='/'
+              element={
+                <LandingScreen
+                  onNewMatch={() => {
+                    if (hasActiveMatch) {
+                      navigate('/setup/edit');
+                    } else {
+                      navigate('/setup');
+                    }
+                  }}
+                  onFindMatch={() => navigate('/history')}
+                  onTournaments={() => navigate('/tournaments')}
+                  hasActiveMatch={hasActiveMatch}
+                />
+              }
+            />
 
-          <Route
-            path='/game'
-            element={
-              <GameScreen
-                onBackToSetup={handleBackToSetup}
-                onFinishMatch={handleFinishMatch}
-              />
-            }
-          />
+            <Route
+              path='/setup'
+              element={
+                <GameSetupScreen
+                  initialSettings={null}
+                  onStartMatch={handleStartMatch}
+                  onBack={handleBackToHome}
+                  isEditing={false}
+                />
+              }
+            />
 
-          <Route
-            path='/history'
-            element={<MatchHistoryScreen onBack={() => navigate('/')} />}
-          />
+            <Route
+              path='/setup/edit'
+              element={
+                <GameSetupScreen
+                  initialSettings={gameSettings}
+                  onReturnToMatch={handleReturnToMatch}
+                  onBack={handleBackToHome}
+                  isEditing={true}
+                />
+              }
+            />
 
-          <Route
-            path='/tournaments'
-            element={
-              <TournamentScreen
-                onNavigateToTournament={handleNavigateToTournament}
-                onBack={() => navigate('/')}
-              />
-            }
-          />
+            <Route
+              path='/game'
+              element={
+                <GameScreen
+                  onBackToSetup={handleBackToSetup}
+                  onFinishMatch={handleFinishMatch}
+                />
+              }
+            />
 
-          <Route
-            path='/tournaments/:tournamentId'
-            element={
-              <TournamentDetailScreenWrapper
-                onBack={() => navigate('/tournaments')}
-                onScoreMatch={handleScoreTournamentMatch}
-              />
-            }
-          />
+            <Route
+              path='/history'
+              element={<MatchHistoryScreen onBack={() => navigate('/')} />}
+            />
 
-          <Route path='*' element={<Navigate to='/' replace />} />
-        </Routes>
+            <Route
+              path='/tournaments'
+              element={
+                <TournamentScreen
+                  onNavigateToTournament={handleNavigateToTournament}
+                  onBack={() => navigate('/')}
+                />
+              }
+            />
 
-        {/* PWA Update Prompt */}
-        <PWAUpdatePrompt />
+            <Route
+              path='/tournaments/:tournamentId'
+              element={
+                <TournamentDetailScreenWrapper
+                  onBack={() => navigate('/tournaments')}
+                  onScoreMatch={handleScoreTournamentMatch}
+                />
+              }
+            />
+
+            <Route path='*' element={<Navigate to='/' replace />} />
+          </Routes>
+
+          {/* PWA Update Prompt */}
+          <PWAUpdatePrompt />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
