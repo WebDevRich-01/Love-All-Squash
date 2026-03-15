@@ -120,10 +120,10 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className='bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2'
+            className='bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-1'
           >
             <svg
-              className='w-5 h-5'
+              className='w-4 h-4 flex-shrink-0'
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -135,7 +135,7 @@ const TournamentScreen = ({ onNavigateToTournament, onBack }) => {
                 d='M12 4v16m8-8H4'
               />
             </svg>
-            <span>Create Tournament</span>
+            <span>New</span>
           </button>
         </div>
 
