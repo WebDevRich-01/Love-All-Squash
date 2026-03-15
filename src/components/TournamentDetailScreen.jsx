@@ -6,6 +6,7 @@ import MonradTournamentView from './MonradTournamentView';
 import PassphraseModal, { getCachedPassphrase } from './PassphraseModal';
 import EditParticipantsModal from './EditParticipantsModal';
 import CreateTournamentModal from './CreateTournamentModal';
+import EnterResultModal from './EnterResultModal';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [tournament, setTournament] = useState(null);
@@ -22,6 +23,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [showPassphraseModal, setShowPassphraseModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
+  const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -114,6 +116,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       isTournamentMatch: true,
       matchConfig: tournament?.config?.match || {},
     });
+  };
+
+  const handleEnterResult = (match) => {
+    setEnterResultMatch(match);
   };
 
   const getStatusColor = (status) => {
@@ -279,6 +285,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           participants={participants}
           matches={matches}
           onScoreMatch={handleScoreMatch}
+          onEnterResult={handleEnterResult}
           onBack={onBack}
           onEditPlayers={handleEditPlayers}
         />
@@ -296,6 +303,15 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             passphrase={getCachedPassphrase(tournamentId)}
             onSave={() => { setShowEditParticipantsModal(false); loadTournamentData(); }}
             onCancel={() => setShowEditParticipantsModal(false)}
+          />
+        )}
+        {enterResultMatch && (
+          <EnterResultModal
+            match={enterResultMatch}
+            tournamentId={tournamentId}
+            matchConfig={tournament?.config?.match}
+            onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
+            onCancel={() => setEnterResultMatch(null)}
           />
         )}
       </>
@@ -379,7 +395,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                 <h2 className='text-xl font-semibold text-gray-900 mb-4'>Ready to Play</h2>
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                   {playableMatches.slice(0, 6).map((match) => (
-                    <TournamentMatchCard key={match._id} match={match} onScore={() => handleScoreMatch(match)} showScoreButton />
+                    <TournamentMatchCard key={match._id} match={match} onScore={() => handleScoreMatch(match)} onEnterResult={() => handleEnterResult(match)} showScoreButton />
                   ))}
                 </div>
               </div>
@@ -439,6 +455,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                         key={match._id}
                         match={match}
                         onScore={status === 'ready' ? () => handleScoreMatch(match) : null}
+                        onEnterResult={status === 'ready' ? () => handleEnterResult(match) : null}
                         showScoreButton={status === 'ready'}
                         showResult={status === 'completed'}
                       />
@@ -472,6 +489,17 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           passphrase={getCachedPassphrase(tournamentId)}
           onSave={() => { setShowEditParticipantsModal(false); loadTournamentData(); }}
           onCancel={() => setShowEditParticipantsModal(false)}
+        />
+      )}
+
+      {/* Enter result modal */}
+      {enterResultMatch && (
+        <EnterResultModal
+          match={enterResultMatch}
+          tournamentId={tournamentId}
+          matchConfig={tournament?.config?.match}
+          onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
+          onCancel={() => setEnterResultMatch(null)}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ const MonradTournamentView = ({
   participants,
   matches,
   onScoreMatch,
+  onEnterResult,
   onBack,
   onEditPlayers,
 }) => {
@@ -165,21 +166,31 @@ const MonradTournamentView = ({
           </div>
         )}
 
-        {/* Score button */}
+        {/* Buttons */}
         {canScore && (
-          <button
-            onClick={() => onScoreMatch({
-              matchId: match._id,
-              tournamentId: tournament._id,
-              player1Name: playerA.name,
-              player2Name: playerB.name,
-              player1Id: match.participant_a?.participant_id,
-              player2Id: match.participant_b?.participant_id,
-            })}
-            className='w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium'
-          >
-            Score Match
-          </button>
+          <div className='space-y-2'>
+            <button
+              onClick={() => onScoreMatch({
+                matchId: match._id,
+                tournamentId: tournament._id,
+                player1Name: playerA.name,
+                player2Name: playerB.name,
+                player1Id: match.participant_a?.participant_id,
+                player2Id: match.participant_b?.participant_id,
+              })}
+              className='w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium'
+            >
+              Score Match
+            </button>
+            {onEnterResult && (
+              <button
+                onClick={() => onEnterResult(match)}
+                className='w-full bg-white text-gray-700 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm'
+              >
+                Enter Result
+              </button>
+            )}
+          </div>
         )}
       </div>
     );
@@ -387,6 +398,7 @@ MonradTournamentView.propTypes = {
   participants: PropTypes.array.isRequired,
   matches: PropTypes.array.isRequired,
   onScoreMatch: PropTypes.func.isRequired,
+  onEnterResult: PropTypes.func,
   onBack: PropTypes.func.isRequired,
 };
 

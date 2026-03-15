@@ -3,6 +3,7 @@ import React from 'react';
 const TournamentMatchCard = ({
   match,
   onScore,
+  onEnterResult,
   showScoreButton = false,
   showResult = false,
 }) => {
@@ -170,21 +171,31 @@ const TournamentMatchCard = ({
           </div>
         )}
 
-        {/* Action button */}
-        {showScoreButton && onScore && (
-          <div className='mt-4'>
-            <button
-              onClick={onScore}
-              disabled={
-                !match.participant_a.name ||
-                !match.participant_b.name ||
-                match.participant_a.type === 'bye' ||
-                match.participant_b.type === 'bye'
-              }
-              className='w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-            >
-              Score Match
-            </button>
+        {/* Action buttons */}
+        {showScoreButton && (onScore || onEnterResult) && (
+          <div className='mt-4 space-y-2'>
+            {onScore && (
+              <button
+                onClick={onScore}
+                disabled={
+                  !match.participant_a.name ||
+                  !match.participant_b.name ||
+                  match.participant_a.type === 'bye' ||
+                  match.participant_b.type === 'bye'
+                }
+                className='w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+              >
+                Score Match
+              </button>
+            )}
+            {onEnterResult && (
+              <button
+                onClick={onEnterResult}
+                className='w-full bg-white text-gray-700 border border-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm'
+              >
+                Enter Result
+              </button>
+            )}
           </div>
         )}
       </div>
