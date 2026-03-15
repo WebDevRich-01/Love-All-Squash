@@ -105,6 +105,11 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
     description: '',
     start_date: '',
     participants: [],
+    matchSettings: {
+      points_to_win: 15,
+      best_of: 5,
+      clear_points: 2,
+    },
   });
 
   const [availableFormats, setAvailableFormats] = useState([]);
@@ -277,10 +282,9 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
   const getDefaultConfig = (format) => {
     const baseConfig = {
       match: {
-        best_of: 5,
-        points_to_win: 15,
-        clear_points: 2,
-        scoring: 'traditional',
+        best_of: formData.matchSettings.best_of,
+        points_to_win: formData.matchSettings.points_to_win,
+        clear_points: formData.matchSettings.clear_points,
       },
       courts: 1,
       min_rest_minutes: 20,
@@ -443,6 +447,82 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
                 className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
                 placeholder='Optional tournament description'
               />
+            </div>
+
+            {/* Match Settings */}
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-2'>
+                Match Settings
+              </label>
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
+                <div>
+                  <label className='block text-xs font-medium text-gray-600 mb-1'>
+                    Points to Win
+                  </label>
+                  <select
+                    value={formData.matchSettings.points_to_win}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        matchSettings: { ...prev.matchSettings, points_to_win: Number(e.target.value) },
+                      }))
+                    }
+                    className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  >
+                    <option value={11}>11 Points</option>
+                    <option value={15}>15 Points</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='block text-xs font-medium text-gray-600 mb-1'>
+                    Match Format
+                  </label>
+                  <select
+                    value={formData.matchSettings.best_of}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        matchSettings: { ...prev.matchSettings, best_of: Number(e.target.value) },
+                      }))
+                    }
+                    className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  >
+                    <option value={3}>Best of 3</option>
+                    <option value={5}>Best of 5</option>
+                  </select>
+                </div>
+
+                <div className='flex items-end'>
+                  <label className='flex items-center gap-3 p-2 bg-white rounded border border-gray-300 cursor-pointer hover:bg-gray-50 w-full'>
+                    <div className='relative flex-shrink-0'>
+                      <input
+                        type='checkbox'
+                        checked={formData.matchSettings.clear_points === 2}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            matchSettings: { ...prev.matchSettings, clear_points: e.target.checked ? 2 : 1 },
+                          }))
+                        }
+                        className='sr-only'
+                      />
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        formData.matchSettings.clear_points === 2
+                          ? 'bg-blue-500 border-blue-500'
+                          : 'bg-white border-gray-300'
+                      }`}>
+                        {formData.matchSettings.clear_points === 2 && (
+                          <svg className='w-3 h-3 text-white' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clipRule='evenodd' />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span className='text-sm font-medium text-gray-700'>2 Clear</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* Participants */}

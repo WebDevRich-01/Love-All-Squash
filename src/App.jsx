@@ -166,14 +166,15 @@ function App() {
         matchContext.player2Id || matchContext.participant_b?.participant_id,
     });
 
+    const mc = matchContext.matchConfig || {};
     const settings = {
       player1Name: matchContext.player1Name,
       player2Name: matchContext.player2Name,
       player1Color: 'border-red-500',
       player2Color: 'border-blue-500',
-      pointsToWin: 15,
-      clearPoints: 2,
-      bestOf: 5,
+      pointsToWin: mc.points_to_win || 15,
+      clearPoints: mc.clear_points || 2,
+      bestOf: mc.best_of || 5,
       player1Serving: true,
       eventName: 'Tournament Match',
     };

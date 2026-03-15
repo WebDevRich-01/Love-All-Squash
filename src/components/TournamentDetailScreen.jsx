@@ -61,6 +61,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       participant_a: matchContext.participant_a,
       participant_b: matchContext.participant_b,
       isTournamentMatch: true,
+      matchConfig: tournament?.config?.match || {},
     };
 
     onScoreMatch(contextData);
