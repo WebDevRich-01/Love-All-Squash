@@ -127,7 +127,8 @@ const MonradTournamentView = ({
               {playerA.name}
             </span>
             {match.status === 'completed' &&
-              match.result?.winner_participant_id === match.participant_a?.participant_id && (
+              match.result?.winner_participant_id &&
+              match.result.winner_participant_id === match.participant_a?.participant_id && (
                 <span className='text-green-600 font-bold'>W</span>
               )}
           </div>
@@ -142,7 +143,8 @@ const MonradTournamentView = ({
               {playerB.name}
             </span>
             {match.status === 'completed' &&
-              match.result?.winner_participant_id === match.participant_b?.participant_id && (
+              match.result?.winner_participant_id &&
+              match.result.winner_participant_id === match.participant_b?.participant_id && (
                 <span className='text-green-600 font-bold'>W</span>
               )}
           </div>
