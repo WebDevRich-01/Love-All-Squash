@@ -12,6 +12,7 @@ export default function GameWinModal({
   const player1 = useGameStore((state) => state.player1);
   const player2 = useGameStore((state) => state.player2);
   const gameScores = useGameStore((state) => state.gameScores);
+  const isTournamentMatch = useGameStore((state) => !!state.tournamentMatchContext);
 
   const player = winningPlayer === 1 ? player1 : player2;
   const playerName = player?.name || `Player ${winningPlayer}`;
@@ -43,7 +44,7 @@ export default function GameWinModal({
               onClick={handleFinishMatch}
               className='w-full p-3 bg-blue-500 text-white rounded hover:bg-blue-600'
             >
-              Return to Menu
+              {isTournamentMatch ? 'Return to Tournament' : 'Return to Menu'}
             </button>
           </>
         ) : (

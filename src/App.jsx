@@ -130,13 +130,16 @@ function App() {
         return; // Don't navigate — let the user retry or skip
       }
 
+      useGameStore.getState().resetGame();
       setTournamentMatchContext(null);
       setHasActiveMatch(false);
       navigate(`/tournaments/${tournamentMatchContext.tournamentId}`);
       return;
     }
 
+    useGameStore.getState().resetGame();
     setHasActiveMatch(false);
+    navigate('/');
   };
 
   const handleSkipAndExit = () => {

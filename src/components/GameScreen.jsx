@@ -86,16 +86,13 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
   };
 
   const handleFinishMatch = async () => {
-    // Call onFinishMatch FIRST to handle tournament result submission
     if (onFinishMatch) {
-      await onFinishMatch(); // Notify App component that match is finished
+      await onFinishMatch(); // App handles navigation (incl. tournament redirect)
     } else {
       if (import.meta.env.DEV) console.warn('No onFinishMatch callback provided');
+      resetGame();
+      navigate('/');
     }
-
-    // THEN reset the game state and navigate
-    resetGame();
-    navigate('/');
   };
 
   const getGameScoreDisplay = () => {
