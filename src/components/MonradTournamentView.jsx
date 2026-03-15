@@ -235,13 +235,14 @@ const MonradTournamentView = ({
                 </div>
               </div>
             </div>
-            <div className='text-xs text-gray-500 text-right'>
+            <div className='text-xs text-right'>
               {player.gamePointsFor !== undefined && (
                 <span className={player.gamePointsFor - player.gamePointsAgainst >= 0 ? 'text-green-600' : 'text-red-600'}>
                   {player.gamePointsFor - player.gamePointsAgainst > 0 ? '+' : ''}
                   {player.gamePointsFor - player.gamePointsAgainst}
                 </span>
               )}
+              <div className='text-gray-400'>pt diff</div>
             </div>
           </div>
         ))
