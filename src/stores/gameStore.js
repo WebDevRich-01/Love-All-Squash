@@ -337,14 +337,38 @@ const useGameStore = create((set, get) => ({
         };
       }
 
-      // If it's a no let entry with handout, remove the previous score too
-      if (
-        lastEntry.type === 'nolet' &&
-        lastEntry.isHandout &&
-        newHistory.length > 1
-      ) {
-        newHistory = newHistory.slice(0, -1);
-        return { scoreHistory: newHistory };
+      // If it's a nolet entry, undo the awarded point
+      if (lastEntry.type === 'nolet') {
+        const player = lastEntry.player;
+        const opponent = player === 'player1' ? 'player2' : 'player1';
+
+        if (lastEntry.isHandout) {
+          // Handout nolet: the history entry above the handout line also needs removing
+          newHistory = newHistory.slice(0, -1);
+          return {
+            [player]: {
+              ...state[player],
+              serving: true,
+              serveSide: lastEntry.serveSide,
+            },
+            [opponent]: {
+              ...state[opponent],
+              score: state[opponent].score - 1,
+              serving: false,
+            },
+            scoreHistory: newHistory,
+          };
+        }
+
+        // Regular nolet: opponent got the point, reduce their score
+        return {
+          [opponent]: {
+            ...state[opponent],
+            score: state[opponent].score - 1,
+            serveSide: lastEntry.serveSide,
+          },
+          scoreHistory: newHistory,
+        };
       }
 
       // Handle regular scoring entries
@@ -430,7 +454,7 @@ const useGameStore = create((set, get) => ({
           if (isHandout) {
             // Only add the losing player's score above the handout line
             newHistory.push({
-              type: 'score',
+              type: 'stroke',
               player: opponent,
               score: state[opponent].score,
               serveSide: state[opponent].serveSide,
@@ -441,7 +465,7 @@ const useGameStore = create((set, get) => ({
           } else {
             // For normal points (no handout), add the previous score
             newHistory.push({
-              type: 'score',
+              type: 'stroke',
               player,
               score: state[player].score,
               serveSide: state[player].serveSide,
@@ -522,7 +546,7 @@ const useGameStore = create((set, get) => ({
           if (willHandout) {
             // Only add the losing player's score above the handout line
             newHistory.push({
-              type: 'score',
+              type: 'nolet',
               player,
               score: state[player].score,
               serveSide: state[player].serveSide,
@@ -533,7 +557,7 @@ const useGameStore = create((set, get) => ({
           } else {
             // For normal points (no handout), add the previous score
             newHistory.push({
-              type: 'score',
+              type: 'nolet',
               player: opponent,
               score: state[opponent].score,
               serveSide: state[opponent].serveSide,
