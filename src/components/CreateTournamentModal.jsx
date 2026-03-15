@@ -5,6 +5,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -140,8 +141,15 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
   const [error, setError] = useState(null);
 
   // Drag and drop sensors
+  // PointerSensor needs a distance constraint so a small tap doesn't cancel the drag.
+  // TouchSensor with a delay handles Android where pointer events are unreliable.
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
