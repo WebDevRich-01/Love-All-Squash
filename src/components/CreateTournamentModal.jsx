@@ -97,19 +97,41 @@ const SortableParticipantItem = ({
   );
 };
 
-const CreateTournamentModal = ({ onClose, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    format: 'single_elimination',
-    venue: '',
-    description: '',
-    start_date: '',
-    participants: [],
-    matchSettings: {
-      points_to_win: 15,
-      best_of: 5,
-      clear_points: 2,
-    },
+const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, participants: initialParticipants }) => {
+  const editMode = !!tournament;
+
+  const [formData, setFormData] = useState(() => {
+    if (editMode) {
+      return {
+        name: tournament.name || '',
+        format: tournament.format || 'single_elimination',
+        venue: tournament.venue || '',
+        description: tournament.description || '',
+        start_date: tournament.start_date ? tournament.start_date.split('T')[0] : '',
+        participants: (initialParticipants || [])
+          .sort((a, b) => (a.seed || 999) - (b.seed || 999))
+          .map((p, i) => ({ id: `participant-${i}`, name: p.name, seed: p.seed || i + 1, club: p.club || '', color: p.color || 'border-blue-500' })),
+        matchSettings: {
+          points_to_win: tournament.config?.match?.points_to_win || 15,
+          best_of: tournament.config?.match?.best_of || 5,
+          clear_points: tournament.config?.match?.clear_points || 2,
+        },
+      };
+    }
+    return {
+      name: '',
+      format: 'single_elimination',
+      venue: '',
+      description: '',
+      start_date: '',
+      passphrase: '',
+      participants: [],
+      matchSettings: {
+        points_to_win: 15,
+        best_of: 5,
+        clear_points: 2,
+      },
+    };
   });
 
   const [availableFormats, setAvailableFormats] = useState([]);
@@ -259,18 +281,23 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
     try {
       setLoading(true);
 
-      const tournamentData = {
+      const participants = formData.participants.map(({ id, ...p }) => p);
+      const config = getDefaultConfig(formData.format);
+      const base = {
         name: formData.name.trim(),
         format: formData.format,
         ...(formData.venue.trim() && { venue: formData.venue.trim() }),
         ...(formData.description.trim() && { description: formData.description.trim() }),
         ...(formData.start_date && { start_date: formData.start_date }),
-        // Strip the frontend-only `id` field used for drag-and-drop
-        participants: formData.participants.map(({ id, ...p }) => p),
-        config: getDefaultConfig(formData.format),
+        config,
+        participants,
       };
 
-      await onSubmit(tournamentData);
+      if (editMode) {
+        await onUpdate(base);
+      } else {
+        await onSubmit({ ...base, passphrase: formData.passphrase });
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Error creating tournament:', err);
       setError(err.message || 'Failed to create tournament');
@@ -342,7 +369,7 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
           {/* Header */}
           <div className='flex items-center justify-between p-6 border-b'>
             <h2 className='text-2xl font-bold text-gray-900'>
-              Create Tournament
+              {editMode ? 'Edit Tournament' : 'Create Tournament'}
             </h2>
             <button
               type='button'
@@ -448,6 +475,26 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
                 placeholder='Optional tournament description'
               />
             </div>
+
+            {/* Passphrase (create mode only) */}
+            {!editMode && (
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                  Passphrase *
+                </label>
+                <input
+                  type='password'
+                  value={formData.passphrase || ''}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, passphrase: e.target.value }))}
+                  className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  placeholder='Set a passphrase for editing this tournament'
+                  required
+                />
+                <p className='text-xs text-gray-500 mt-1'>
+                  Required to edit or start the tournament. Share with trusted organisers only.
+                </p>
+              </div>
+            )}
 
             {/* Match Settings */}
             <div>
@@ -654,7 +701,7 @@ const CreateTournamentModal = ({ onClose, onSubmit }) => {
               disabled={loading || formData.participants.length < 2}
               className='px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
             >
-              {loading ? 'Creating...' : 'Create Tournament'}
+              {loading ? (editMode ? 'Saving...' : 'Creating...') : (editMode ? 'Save Changes' : 'Create Tournament')}
             </button>
           </div>
         </form>

@@ -7,6 +7,7 @@ const MonradTournamentView = ({
   matches,
   onScoreMatch,
   onBack,
+  onEditPlayers,
 }) => {
   const [currentRound, setCurrentRound] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
@@ -264,7 +265,16 @@ const MonradTournamentView = ({
             <span>Back</span>
           </button>
           <h1 className='text-lg font-bold truncate mx-4'>{tournament.name}</h1>
-          <div className='w-16' />
+          {onEditPlayers ? (
+            <button
+              onClick={onEditPlayers}
+              className='text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-3 py-1'
+            >
+              Edit Players
+            </button>
+          ) : (
+            <div className='w-16' />
+          )}
         </div>
 
         {/* Round + Standings tabs */}
