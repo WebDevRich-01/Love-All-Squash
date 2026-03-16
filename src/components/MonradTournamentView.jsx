@@ -8,7 +8,7 @@ const MonradTournamentView = ({
   onScoreMatch,
   onEnterResult,
   onBack,
-  onEditPlayers,
+  onEdit,
 }) => {
   const [currentRound, setCurrentRound] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
@@ -276,12 +276,12 @@ const MonradTournamentView = ({
             <span>Back</span>
           </button>
           <h1 className='text-lg font-bold truncate mx-4'>{tournament.name}</h1>
-          {onEditPlayers ? (
+          {onEdit ? (
             <button
-              onClick={onEditPlayers}
+              onClick={onEdit}
               className='text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-3 py-1'
             >
-              Edit Players
+              Edit
             </button>
           ) : (
             <div className='w-16' />
@@ -400,6 +400,7 @@ MonradTournamentView.propTypes = {
   onScoreMatch: PropTypes.func.isRequired,
   onEnterResult: PropTypes.func,
   onBack: PropTypes.func.isRequired,
+  onEdit: PropTypes.func,
 };
 
 export default MonradTournamentView;

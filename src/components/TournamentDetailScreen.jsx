@@ -7,6 +7,7 @@ import PassphraseModal, { getCachedPassphrase } from './PassphraseModal';
 import EditParticipantsModal from './EditParticipantsModal';
 import CreateTournamentModal from './CreateTournamentModal';
 import EnterResultModal from './EnterResultModal';
+import TournamentEditOptionsModal from './TournamentEditOptionsModal';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [tournament, setTournament] = useState(null);
@@ -22,6 +23,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   // Passphrase / edit state
   const [showPassphraseModal, setShowPassphraseModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditOptionsModal, setShowEditOptionsModal] = useState(false);
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
   const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -92,8 +94,14 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     withPassphrase(() => setShowEditModal(true));
   };
 
+  // Opens the edit options modal (edit players OR reset) — used for active tournaments
+  const handleEdit = () => {
+    withPassphrase(() => setShowEditOptionsModal(true));
+  };
+
+  // Called from within the edit options modal
   const handleEditPlayers = () => {
-    withPassphrase(() => setShowEditParticipantsModal(true));
+    setShowEditParticipantsModal(true);
   };
 
   const handleTournamentUpdate = async (data) => {
@@ -287,13 +295,22 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           onScoreMatch={handleScoreMatch}
           onEnterResult={handleEnterResult}
           onBack={onBack}
-          onEditPlayers={handleEditPlayers}
+          onEdit={handleEdit}
         />
         {showPassphraseModal && (
           <PassphraseModal
             tournamentId={tournamentId}
             onSuccess={handlePassphraseSuccess}
             onCancel={() => { setShowPassphraseModal(false); pendingAction.current = null; }}
+          />
+        )}
+        {showEditOptionsModal && (
+          <TournamentEditOptionsModal
+            tournamentId={tournamentId}
+            passphrase={getCachedPassphrase(tournamentId)}
+            onEditPlayers={handleEditPlayers}
+            onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
+            onClose={() => setShowEditOptionsModal(false)}
           />
         )}
         {showEditParticipantsModal && (
@@ -350,10 +367,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                 </span>
               )}
               <button
-                onClick={handleEditPlayers}
+                onClick={handleEdit}
                 className='px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium'
               >
-                Edit Players
+                Edit
               </button>
               <button onClick={loadTournamentData} className='p-2 text-gray-600 hover:text-gray-800 transition-colors' title='Refresh'>
                 <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -478,6 +495,17 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           tournamentId={tournamentId}
           onSuccess={handlePassphraseSuccess}
           onCancel={() => { setShowPassphraseModal(false); pendingAction.current = null; }}
+        />
+      )}
+
+      {/* Edit options modal */}
+      {showEditOptionsModal && (
+        <TournamentEditOptionsModal
+          tournamentId={tournamentId}
+          passphrase={getCachedPassphrase(tournamentId)}
+          onEditPlayers={handleEditPlayers}
+          onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
+          onClose={() => setShowEditOptionsModal(false)}
         />
       )}
 
