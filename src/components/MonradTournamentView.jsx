@@ -356,9 +356,19 @@ const MonradTournamentView = ({
           <span>Back to Tournaments</span>
         </button>
         <h1 className='text-2xl font-bold'>{tournament.name}</h1>
-        <div className='text-sm text-gray-600'>
-          {tournament.venue && <span>{tournament.venue} • </span>}
-          Monrad (Swiss) • {participants.length} Players • {totalRounds} Rounds
+        <div className='flex items-center gap-4'>
+          <div className='text-sm text-gray-600'>
+            {tournament.venue && <span>{tournament.venue} • </span>}
+            Monrad (Swiss) • {participants.length} Players • {totalRounds} Rounds
+          </div>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className='text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-3 py-1.5'
+            >
+              Edit
+            </button>
+          )}
         </div>
       </div>
 
