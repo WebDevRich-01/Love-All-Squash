@@ -82,7 +82,8 @@ const useGameStore = create((set, get) => ({
     set({ tournamentMatchContext: context }),
 
   // Reset game to initial state
-  resetGame: () =>
+  resetGame: () => {
+    localStorage.removeItem('las_active_game');
     set(() => ({
       player1: {
         name: '',
@@ -114,7 +115,8 @@ const useGameStore = create((set, get) => ({
           timestamp: getUniqueTimestamp(),
         },
       ],
-    })),
+    }));
+  },
 
   // Add back checkGameWin for the modal
   checkGameWin: () => {
@@ -760,6 +762,7 @@ const useGameStore = create((set, get) => ({
 
     try {
       await api.saveMatch(matchData);
+      localStorage.removeItem('las_active_game');
       set({ isSaving: false, matchSaved: true });
       return true;
     } catch (error) {
@@ -802,6 +805,35 @@ const useGameStore = create((set, get) => ({
 
   // Add method to clear error
   clearSaveError: () => set({ saveError: null }),
+
+  // Restore a previously persisted in-progress game from localStorage
+  restorePersistedGame: () => {
+    try {
+      const raw = localStorage.getItem('las_active_game');
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      set({
+        matchSettings: saved.matchSettings,
+        player1: saved.player1,
+        player2: saved.player2,
+        currentGame: saved.currentGame,
+        gameScores: saved.gameScores,
+        gamesWon: saved.gamesWon,
+        matchWon: saved.matchWon,
+        scoreHistory: saved.scoreHistory,
+        firstServiceComplete: saved.firstServiceComplete,
+        eventName: saved.eventName,
+        tournamentMatchContext: saved.tournamentMatchContext,
+        matchSaved: false,
+        saveError: null,
+        isSaving: false,
+      });
+      return true;
+    } catch {
+      localStorage.removeItem('las_active_game');
+      return false;
+    }
+  },
 
   checkMatchWin: () => {
     const state = get();
@@ -854,5 +886,29 @@ const useGameStore = create((set, get) => ({
     }));
   },
 }));
+
+// Persist active game state to localStorage after every state change.
+// Only writes when a named match is in progress and not yet saved.
+useGameStore.subscribe((state) => {
+  if (!state.player1.name || !state.player2.name || state.matchSaved) return;
+  try {
+    localStorage.setItem('las_active_game', JSON.stringify({
+      matchSettings: state.matchSettings,
+      player1: state.player1,
+      player2: state.player2,
+      currentGame: state.currentGame,
+      gameScores: state.gameScores,
+      gamesWon: state.gamesWon,
+      matchWon: state.matchWon,
+      scoreHistory: state.scoreHistory,
+      firstServiceComplete: state.firstServiceComplete,
+      eventName: state.eventName,
+      tournamentMatchContext: state.tournamentMatchContext,
+      savedAt: Date.now(),
+    }));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+});
 
 export default useGameStore;

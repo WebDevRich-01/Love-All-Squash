@@ -18,6 +18,21 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
   const [winningPlayer, setWinningPlayer] = useState(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [matchHistoryModalOpen, setMatchHistoryModalOpen] = useState(false);
+  const [resumePrompt, setResumePrompt] = useState(() => {
+    try {
+      const raw = localStorage.getItem('las_active_game');
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      // Only prompt if saved within the last 24 hours
+      if (Date.now() - saved.savedAt > 86_400_000) {
+        localStorage.removeItem('las_active_game');
+        return null;
+      }
+      return saved;
+    } catch {
+      return null;
+    }
+  });
 
   const {
     player1,
@@ -35,6 +50,7 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
     matchSettings,
     isGamePoint,
     isMatchPoint,
+    restorePersistedGame,
   } = useGameStore();
 
   // Wake lock to prevent screen timeout during matches
@@ -151,6 +167,52 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
 
     onBackToSetup(settingsToPass);
   };
+
+  // Show resume prompt only when the store has no active match loaded
+  const showResumePrompt = resumePrompt && !player1.name;
+
+  if (showResumePrompt) {
+    const s = resumePrompt;
+    return (
+      <div className='h-full flex flex-col items-center justify-center bg-slate-50 p-6 gap-6'>
+        <div className='card p-6 w-full max-w-sm text-center'>
+          <h2 className='text-xl font-bold text-gray-900 mb-1'>Resume match?</h2>
+          <p className='text-gray-500 text-sm mb-4'>
+            A match was interrupted and can be continued.
+          </p>
+          <div className='bg-slate-100 rounded-lg px-4 py-3 mb-6 text-sm'>
+            <div className='font-semibold text-gray-800'>
+              {s.player1.name} vs {s.player2.name}
+            </div>
+            <div className='text-gray-500 mt-1'>
+              Game {s.currentGame} &middot; {s.player1.score}–{s.player2.score}
+            </div>
+          </div>
+          <div className='flex flex-col gap-3'>
+            <button
+              className='btn-primary w-full'
+              onClick={() => {
+                restorePersistedGame();
+                setResumePrompt(null);
+              }}
+            >
+              Resume match
+            </button>
+            <button
+              className='btn-secondary w-full'
+              onClick={() => {
+                localStorage.removeItem('las_active_game');
+                setResumePrompt(null);
+                navigate('/');
+              }}
+            >
+              Discard &amp; go back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='h-full flex flex-col overflow-hidden bg-slate-50'>
