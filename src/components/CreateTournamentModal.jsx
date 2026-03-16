@@ -564,6 +564,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                     }
                     className='w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
                   >
+                    <option value={1}>Single Game</option>
                     <option value={3}>Best of 3</option>
                     <option value={5}>Best of 5</option>
                   </select>
