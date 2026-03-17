@@ -116,6 +116,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           points_to_win: tournament.config?.match?.points_to_win || 15,
           best_of: tournament.config?.match?.best_of || 5,
           clear_points: tournament.config?.match?.clear_points || 2,
+          is_handicap: tournament.config?.match?.is_handicap || false,
         },
       };
     }
@@ -131,6 +132,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         points_to_win: 15,
         best_of: 5,
         clear_points: 2,
+        is_handicap: false,
       },
     };
   });
@@ -321,6 +323,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         best_of: formData.matchSettings.best_of,
         points_to_win: formData.matchSettings.points_to_win,
         clear_points: formData.matchSettings.clear_points,
+        is_handicap: formData.matchSettings.is_handicap,
       },
       courts: 1,
       min_rest_minutes: 20,
@@ -597,6 +600,36 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                       </div>
                     </div>
                     <span className='text-sm font-medium text-gray-700'>2 Clear</span>
+                  </label>
+                </div>
+
+                <div className='flex items-end'>
+                  <label className='flex items-center gap-3 p-2 bg-white rounded border border-gray-300 cursor-pointer hover:bg-gray-50 w-full'>
+                    <div className='relative flex-shrink-0'>
+                      <input
+                        type='checkbox'
+                        checked={formData.matchSettings.is_handicap}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            matchSettings: { ...prev.matchSettings, is_handicap: e.target.checked },
+                          }))
+                        }
+                        className='sr-only'
+                      />
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        formData.matchSettings.is_handicap
+                          ? 'bg-blue-500 border-blue-500'
+                          : 'bg-white border-gray-300'
+                      }`}>
+                        {formData.matchSettings.is_handicap && (
+                          <svg className='w-3 h-3 text-white' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clipRule='evenodd' />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span className='text-sm font-medium text-gray-700'>Handicap</span>
                   </label>
                 </div>
               </div>

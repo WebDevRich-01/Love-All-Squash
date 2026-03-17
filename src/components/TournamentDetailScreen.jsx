@@ -8,6 +8,7 @@ import EditParticipantsModal from './EditParticipantsModal';
 import CreateTournamentModal from './CreateTournamentModal';
 import EnterResultModal from './EnterResultModal';
 import TournamentEditOptionsModal from './TournamentEditOptionsModal';
+import HandicapSetupModal from './HandicapSetupModal';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [tournament, setTournament] = useState(null);
@@ -26,6 +27,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [showEditOptionsModal, setShowEditOptionsModal] = useState(false);
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
   const [enterResultMatch, setEnterResultMatch] = useState(null);
+  const [handicapMatch, setHandicapMatch] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -112,7 +114,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   };
 
   const handleScoreMatch = (matchContext) => {
-    onScoreMatch({
+    const context = {
       tournamentId: matchContext.tournamentId || tournament._id,
       matchId: matchContext.matchId || matchContext._id,
       player1Name: matchContext.player1Name || matchContext.participant_a?.name,
@@ -123,7 +125,13 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       participant_b: matchContext.participant_b,
       isTournamentMatch: true,
       matchConfig: tournament?.config?.match || {},
-    });
+    };
+
+    if (tournament?.config?.match?.is_handicap) {
+      setHandicapMatch(context);
+    } else {
+      onScoreMatch(context);
+    }
   };
 
   const handleEnterResult = (match) => {
@@ -331,6 +339,17 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             onCancel={() => setEnterResultMatch(null)}
           />
         )}
+        {handicapMatch && (
+          <HandicapSetupModal
+            player1Name={handicapMatch.player1Name}
+            player2Name={handicapMatch.player2Name}
+            onConfirm={(p1Start, p2Start) => {
+              setHandicapMatch(null);
+              onScoreMatch({ ...handicapMatch, player1StartScore: p1Start, player2StartScore: p2Start });
+            }}
+            onCancel={() => setHandicapMatch(null)}
+          />
+        )}
       </>
     );
   }
@@ -528,6 +547,19 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           matchConfig={tournament?.config?.match}
           onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
           onCancel={() => setEnterResultMatch(null)}
+        />
+      )}
+
+      {/* Handicap setup modal */}
+      {handicapMatch && (
+        <HandicapSetupModal
+          player1Name={handicapMatch.player1Name}
+          player2Name={handicapMatch.player2Name}
+          onConfirm={(p1Start, p2Start) => {
+            setHandicapMatch(null);
+            onScoreMatch({ ...handicapMatch, player1StartScore: p1Start, player2StartScore: p2Start });
+          }}
+          onCancel={() => setHandicapMatch(null)}
         />
       )}
     </div>

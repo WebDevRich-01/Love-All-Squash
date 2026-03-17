@@ -38,6 +38,7 @@ TournamentDetailScreenWrapper.propTypes = {
 function App() {
   const navigate = useNavigate();
   const updateGameSettings = useGameStore((state) => state.updateGameSettings);
+  const initializeGame = useGameStore((state) => state.initializeGame);
   const setTournamentMatchContext = useGameStore(
     (state) => state.setTournamentMatchContext
   );
@@ -177,9 +178,11 @@ function App() {
       bestOf: mc.best_of || 5,
       player1Serving: true,
       eventName: 'Tournament Match',
+      player1StartScore: matchContext.player1StartScore ?? 0,
+      player2StartScore: matchContext.player2StartScore ?? 0,
     };
 
-    updateGameSettings(settings);
+    initializeGame(settings);
     setHasActiveMatch(true);
     navigate('/game');
   };

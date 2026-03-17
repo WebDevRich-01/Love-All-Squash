@@ -706,14 +706,14 @@ const useGameStore = create((set, get) => ({
       player1: {
         name: settings.player1Name,
         color: settings.player1Color,
-        score: 0,
+        score: settings.player1StartScore ?? 0,
         serving: settings.player1Serving,
         serveSide: 'R',
       },
       player2: {
         name: settings.player2Name,
         color: settings.player2Color,
-        score: 0,
+        score: settings.player2StartScore ?? 0,
         serving: !settings.player1Serving,
         serveSide: 'R',
       },
@@ -725,8 +725,8 @@ const useGameStore = create((set, get) => ({
       scoreHistory: [
         {
           type: 'initial',
-          player1Score: 0,
-          player2Score: 0,
+          player1Score: settings.player1StartScore ?? 0,
+          player2Score: settings.player2StartScore ?? 0,
           initialServeSide: 'R',
           servingPlayer: settings.player1Serving ? 'player1' : 'player2',
           timestamp: getUniqueTimestamp(),
