@@ -9,6 +9,7 @@ const MonradTournamentView = ({
   onEnterResult,
   onBack,
   onEdit,
+  isHandicap,
 }) => {
   const [currentRound, setCurrentRound] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
@@ -67,7 +68,7 @@ const MonradTournamentView = ({
         (p) => p._id === participantRef.participant_id
       );
       const seed = original?.seed;
-      const displayName = seed
+      const displayName = seed && !isHandicap
         ? `${participantRef.name} (${seed})`
         : participantRef.name || 'TBD';
       return { name: displayName };

@@ -304,6 +304,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           onEnterResult={handleEnterResult}
           onBack={onBack}
           onEdit={handleEdit}
+          isHandicap={!!tournament?.config?.match?.is_handicap}
         />
         {showPassphraseModal && (
           <PassphraseModal

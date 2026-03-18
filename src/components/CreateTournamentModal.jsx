@@ -24,6 +24,7 @@ const SortableParticipantItem = ({
   index,
   onRemove,
   isMonrad,
+  isHandicap,
 }) => {
   const {
     attributes,
@@ -70,9 +71,11 @@ const SortableParticipantItem = ({
         </div>
       )}
       <div className='flex items-center space-x-2 min-w-0 flex-1'>
-        <span className='text-sm font-medium text-gray-600 flex-shrink-0'>
-          #{index + 1}
-        </span>
+        {!isHandicap && (
+          <span className='text-sm font-medium text-gray-600 flex-shrink-0'>
+            #{index + 1}
+          </span>
+        )}
         <span className='font-medium truncate'>{participant.name}</span>
       </div>
       <button
@@ -221,14 +224,21 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
     });
   };
 
-  const updateParticipantSeed = (index, seed) => {
-    const seedNum = parseInt(seed) || 0;
-    setFormData((prev) => ({
-      ...prev,
-      participants: prev.participants.map((p, i) =>
-        i === index ? { ...p, seed: seedNum } : p
-      ),
-    }));
+
+  const randomiseParticipants = () => {
+    setFormData((prev) => {
+      const shuffled = [...prev.participants].sort(() => Math.random() - 0.5);
+      shuffled.forEach((p, i) => { p.seed = i + 1; });
+      return { ...prev, participants: shuffled };
+    });
+  };
+
+  const alphabetiseParticipants = () => {
+    setFormData((prev) => {
+      const sorted = [...prev.participants].sort((a, b) => a.name.localeCompare(b.name));
+      sorted.forEach((p, i) => { p.seed = i + 1; });
+      return { ...prev, participants: sorted };
+    });
   };
 
   // Handle drag end for Monrad tournaments
@@ -609,12 +619,21 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                       <input
                         type='checkbox'
                         checked={formData.matchSettings.is_handicap}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            matchSettings: { ...prev.matchSettings, is_handicap: e.target.checked },
-                          }))
-                        }
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData((prev) => {
+                            const updated = {
+                              ...prev,
+                              matchSettings: { ...prev.matchSettings, is_handicap: checked },
+                            };
+                            if (checked && prev.participants.length > 0) {
+                              const shuffled = [...prev.participants].sort(() => Math.random() - 0.5);
+                              shuffled.forEach((p, i) => { p.seed = i + 1; });
+                              updated.participants = shuffled;
+                            }
+                            return updated;
+                          });
+                        }}
                         className='sr-only'
                       />
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
@@ -662,8 +681,29 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                 </button>
               </div>
 
+              {/* Randomise / Alphabetise buttons (handicap only) */}
+              {formData.matchSettings.is_handicap && formData.participants.length > 0 && (
+                <div className='flex gap-2 mb-3'>
+                  <button
+                    type='button'
+                    onClick={randomiseParticipants}
+                    className='flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
+                  >
+                    Randomise
+                  </button>
+                  <button
+                    type='button'
+                    onClick={alphabetiseParticipants}
+                    className='flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
+                  >
+                    Alphabetise
+                  </button>
+                </div>
+              )}
+
               {/* Participants list */}
               {formData.format === 'monrad' &&
+                !formData.matchSettings.is_handicap &&
                 formData.participants.length > 0 && (
                   <div className='mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
                     <p className='text-sm text-blue-800'>
@@ -692,53 +732,33 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                           index={index}
                           onRemove={removeParticipant}
                           isMonrad={true}
+                          isHandicap={formData.matchSettings.is_handicap}
                         />
                       ))}
                     </SortableContext>
                   </DndContext>
                 ) : (
-                  // Non-Monrad tournaments use the original interface
-                  formData.participants.map((participant, index) => (
-                    <div
-                      key={participant.id || index}
-                      className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={formData.participants.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <div className='flex-1'>
-                        <span className='font-medium'>{participant.name}</span>
-                      </div>
-                      <div className='flex items-center space-x-2'>
-                        <label className='text-sm text-gray-600'>Seed:</label>
-                        <input
-                          type='number'
-                          min='1'
-                          value={participant.seed}
-                          onChange={(e) =>
-                            updateParticipantSeed(index, e.target.value)
-                          }
-                          className='w-16 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
+                      {formData.participants.map((participant, index) => (
+                        <SortableParticipantItem
+                          key={participant.id}
+                          participant={participant}
+                          index={index}
+                          onRemove={removeParticipant}
+                          isMonrad={false}
+                          isHandicap={formData.matchSettings.is_handicap}
                         />
-                      </div>
-                      <button
-                        type='button'
-                        onClick={() => removeParticipant(index)}
-                        className='text-red-500 hover:text-red-700 transition-colors'
-                      >
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'
-                        >
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ))
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 )}
               </div>
 
