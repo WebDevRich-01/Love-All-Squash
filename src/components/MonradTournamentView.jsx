@@ -248,6 +248,20 @@ const MonradTournamentView = ({
                   {player.wins}W – {player.losses}L
                   {player.byes > 0 && ` (${player.byes} bye)`}
                 </div>
+                {isHandicap && (
+                  <div className='text-xs font-medium mt-0.5'>
+                    <span className={
+                      (player.gamePointsFor - player.gamePointsAgainst) > 0
+                        ? 'text-green-600'
+                        : (player.gamePointsFor - player.gamePointsAgainst) < 0
+                          ? 'text-red-500'
+                          : 'text-gray-400'
+                    }>
+                      {(player.gamePointsFor - player.gamePointsAgainst) > 0 ? '+' : ''}
+                      {player.gamePointsFor - player.gamePointsAgainst} pts diff
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
