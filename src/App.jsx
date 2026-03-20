@@ -106,6 +106,8 @@ function App() {
           ? gameState.player2.name
           : gameState.player1.name;
 
+      const p1Start = tournamentMatchContext.player1StartScore ?? 0;
+      const p2Start = tournamentMatchContext.player2StartScore ?? 0;
       const matchResult = {
         winner_id: winnerId,
         winner_name: winnerName,
@@ -114,6 +116,9 @@ function App() {
         game_scores: gameState.gameScores,
         walkover: false,
         retired: false,
+        ...((p1Start !== 0 || p2Start !== 0) && {
+          handicap_starts: { player1: p1Start, player2: p2Start },
+        }),
       };
 
       try {

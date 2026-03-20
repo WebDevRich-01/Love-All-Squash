@@ -128,6 +128,11 @@ const MonradTournamentView = ({
               : playerA.isPlaceholder ? 'text-gray-400 italic' : ''
             }`}>
               {playerA.name}
+              {match.result?.handicap_starts != null && (
+                <span className='ml-1 text-xs text-gray-400 font-normal'>
+                  ({match.result.handicap_starts.player1 >= 0 ? '+' : ''}{match.result.handicap_starts.player1})
+                </span>
+              )}
             </span>
             {match.status === 'completed' &&
               match.result?.winner_participant_id &&
@@ -144,6 +149,11 @@ const MonradTournamentView = ({
               : playerB.isPlaceholder ? 'text-gray-400 italic' : ''
             }`}>
               {playerB.name}
+              {match.result?.handicap_starts != null && (
+                <span className='ml-1 text-xs text-gray-400 font-normal'>
+                  ({match.result.handicap_starts.player2 >= 0 ? '+' : ''}{match.result.handicap_starts.player2})
+                </span>
+              )}
             </span>
             {match.status === 'completed' &&
               match.result?.winner_participant_id &&

@@ -336,6 +336,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             match={enterResultMatch}
             tournamentId={tournamentId}
             matchConfig={tournament?.config?.match}
+            isHandicap={!!(tournament?.config?.match?.is_handicap)}
             onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
             onCancel={() => setEnterResultMatch(null)}
           />
@@ -546,6 +547,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           match={enterResultMatch}
           tournamentId={tournamentId}
           matchConfig={tournament?.config?.match}
+          isHandicap={!!(tournament?.config?.match?.is_handicap)}
           onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
           onCancel={() => setEnterResultMatch(null)}
         />

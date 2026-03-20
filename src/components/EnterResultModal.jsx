@@ -2,7 +2,33 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import api from '../utils/api';
 
-const EnterResultModal = ({ match, tournamentId, matchConfig = {}, onSave, onCancel }) => {
+const HandicapRow = ({ name, score, onIncrement, onDecrement }) => (
+  <div className='flex items-center justify-between'>
+    <span className='text-sm text-gray-600 flex-1'>{name}</span>
+    <div className='flex items-center gap-2'>
+      <button type='button' onClick={onDecrement}
+        className='w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-colors flex items-center justify-center'>−</button>
+      <div className={`w-12 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${
+        score > 0 ? 'border-green-400 text-green-600 bg-green-50' :
+        score < 0 ? 'border-red-400 text-red-600 bg-red-50' :
+        'border-gray-200 text-gray-500 bg-white'
+      }`}>
+        {score > 0 ? `+${score}` : score}
+      </div>
+      <button type='button' onClick={onIncrement}
+        className='w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-colors flex items-center justify-center'>+</button>
+    </div>
+  </div>
+);
+
+HandicapRow.propTypes = {
+  name: PropTypes.string.isRequired,
+  score: PropTypes.number.isRequired,
+  onIncrement: PropTypes.func.isRequired,
+  onDecrement: PropTypes.func.isRequired,
+};
+
+const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = false, onSave, onCancel }) => {
   const bestOf = matchConfig.best_of || 5;
   const player1Name = match.participant_a?.name || 'Player 1';
   const player2Name = match.participant_b?.name || 'Player 2';
@@ -10,6 +36,8 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, onSave, onCan
   const player2Id = match.participant_b?.participant_id;
 
   const [games, setGames] = useState(Array.from({ length: bestOf }, () => ({ p1: '', p2: '' })));
+  const [p1Start, setP1Start] = useState(0);
+  const [p2Start, setP2Start] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -52,6 +80,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, onSave, onCan
       loserName: p1Wins > p2Wins ? player2Name : player1Name,
       p1Wins,
       p2Wins,
+      // Always store final scoreboard values — consistent with live scoring
       gameScores: validGames.map((g) => ({
         player1: parseInt(g.p1, 10),
         player2: parseInt(g.p2, 10),
@@ -80,6 +109,9 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, onSave, onCan
         game_scores: result.gameScores,
         walkover: false,
         retired: false,
+        ...(isHandicap && (p1Start !== 0 || p2Start !== 0) && {
+          handicap_starts: { player1: p1Start, player2: p2Start },
+        }),
       });
       onSave();
     } catch (err) {
@@ -111,6 +143,19 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, onSave, onCan
             {error && (
               <div className='bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm'>
                 {error}
+              </div>
+            )}
+
+            {/* Handicap starting scores */}
+            {isHandicap && (
+              <div className='bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2'>
+                <p className='text-xs font-semibold text-orange-700 uppercase tracking-wide'>Starting Scores (Handicap)</p>
+                <HandicapRow name={player1Name} score={p1Start}
+                  onIncrement={() => setP1Start((s) => s + 1)}
+                  onDecrement={() => setP1Start((s) => s - 1)} />
+                <HandicapRow name={player2Name} score={p2Start}
+                  onIncrement={() => setP2Start((s) => s + 1)}
+                  onDecrement={() => setP2Start((s) => s - 1)} />
               </div>
             )}
 
@@ -219,6 +264,7 @@ EnterResultModal.propTypes = {
   match: PropTypes.object.isRequired,
   tournamentId: PropTypes.string.isRequired,
   matchConfig: PropTypes.object,
+  isHandicap: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };
