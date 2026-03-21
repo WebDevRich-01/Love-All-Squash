@@ -181,7 +181,7 @@ function App() {
       pointsToWin: mc.points_to_win || 15,
       clearPoints: mc.clear_points || 2,
       bestOf: mc.best_of || 5,
-      player1Serving: true,
+      player1Serving: null, // decided on game screen via "Serving" button
       eventName: 'Tournament Match',
       player1StartScore: matchContext.player1StartScore ?? 0,
       player2StartScore: matchContext.player2StartScore ?? 0,

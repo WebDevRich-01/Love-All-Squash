@@ -51,6 +51,9 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
     isGamePoint,
     isMatchPoint,
     restorePersistedGame,
+    servingDecided,
+    selectServer,
+    tournamentMatchContext,
   } = useGameStore();
 
   // Wake lock to prevent screen timeout during matches
@@ -218,12 +221,15 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
     <div className='h-full flex flex-col overflow-hidden bg-slate-50'>
       {/* Header */}
       <div className='card flex justify-between items-center p-4 m-2 shrink-0'>
-        <button
-          className='btn-secondary !py-2 !px-3 text-xl'
-          onClick={handleBackToSetup}
-        >
-          &larr;
-        </button>
+        {!tournamentMatchContext && (
+          <button
+            className='btn-secondary !py-2 !px-3 text-xl'
+            onClick={handleBackToSetup}
+          >
+            &larr;
+          </button>
+        )}
+        {tournamentMatchContext && <div className='w-10' />}
         <button
           className='text-lg font-semibold text-slate-700 hover:text-slate-900 transition-colors duration-200'
           onClick={() => setMatchHistoryModalOpen(true)}
@@ -268,13 +274,24 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
                 <PointIndicator type='game' />
               )}
             </div>
-            <PlayerButton playerNum={1} />
-            <button
-              onClick={() => handleLetButtonClick(1)}
-              className='btn-let w-full mt-3'
-            >
-              Let
-            </button>
+            {!servingDecided ? (
+              <button
+                onClick={() => selectServer(1)}
+                className='w-full py-3 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-colors'
+              >
+                Serving
+              </button>
+            ) : (
+              <>
+                <PlayerButton playerNum={1} />
+                <button
+                  onClick={() => handleLetButtonClick(1)}
+                  className='btn-let w-full mt-3'
+                >
+                  Let
+                </button>
+              </>
+            )}
           </div>
 
           <div className='flex-1'>
@@ -297,20 +314,31 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
                 <PointIndicator type='game' />
               )}
             </div>
-            <PlayerButton playerNum={2} />
-            <button
-              onClick={() => handleLetButtonClick(2)}
-              className='btn-let w-full mt-3'
-            >
-              Let
-            </button>
+            {!servingDecided ? (
+              <button
+                onClick={() => selectServer(2)}
+                className='w-full py-3 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-colors'
+              >
+                Serving
+              </button>
+            ) : (
+              <>
+                <PlayerButton playerNum={2} />
+                <button
+                  onClick={() => handleLetButtonClick(2)}
+                  className='btn-let w-full mt-3'
+                >
+                  Let
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* Undo button */}
       <div className='p-2'>
-        <button onClick={undoLastPoint} className='btn-undo w-full'>
+        <button onClick={undoLastPoint} disabled={!servingDecided} className='btn-undo w-full disabled:opacity-40 disabled:cursor-not-allowed'>
           ↺ Undo Last Point
         </button>
       </div>

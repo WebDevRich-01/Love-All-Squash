@@ -56,6 +56,7 @@ const useGameStore = create((set, get) => ({
     },
   ],
 
+  servingDecided: true, // false when tournament match starts and server hasn't been chosen yet
   firstServiceComplete: false,
 
   // Add error state
@@ -703,18 +704,19 @@ const useGameStore = create((set, get) => ({
         clearPoints: settings.clearPoints,
         bestOf: settings.bestOf,
       },
+      servingDecided: settings.player1Serving !== null && settings.player1Serving !== undefined,
       player1: {
         name: settings.player1Name,
         color: settings.player1Color,
         score: settings.player1StartScore ?? 0,
-        serving: settings.player1Serving,
+        serving: settings.player1Serving === null || settings.player1Serving === undefined ? false : settings.player1Serving,
         serveSide: 'R',
       },
       player2: {
         name: settings.player2Name,
         color: settings.player2Color,
         score: settings.player2StartScore ?? 0,
-        serving: !settings.player1Serving,
+        serving: settings.player1Serving === null || settings.player1Serving === undefined ? false : !settings.player1Serving,
         serveSide: 'R',
       },
       eventName: eventName, // Use the validated event name
@@ -728,10 +730,22 @@ const useGameStore = create((set, get) => ({
           player1Score: settings.player1StartScore ?? 0,
           player2Score: settings.player2StartScore ?? 0,
           initialServeSide: 'R',
-          servingPlayer: settings.player1Serving ? 'player1' : 'player2',
+          servingPlayer: settings.player1Serving === false ? 'player2' : 'player1',
           timestamp: getUniqueTimestamp(),
         },
       ],
+    }));
+  },
+
+  selectServer: (playerNum) => {
+    const p1Serving = playerNum === 1;
+    set((state) => ({
+      servingDecided: true,
+      player1: { ...state.player1, serving: p1Serving, serveSide: 'R' },
+      player2: { ...state.player2, serving: !p1Serving, serveSide: 'R' },
+      scoreHistory: state.scoreHistory.map((entry, i) =>
+        i === 0 ? { ...entry, servingPlayer: p1Serving ? 'player1' : 'player2' } : entry
+      ),
     }));
   },
 
