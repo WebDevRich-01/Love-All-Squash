@@ -209,6 +209,27 @@ const api = {
     return response.json();
   },
 
+  editTournamentMatchResult: async (tournamentId, matchId, result, passphrase) => {
+    if (isDevelopment) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve({ success: true }), 500);
+      });
+    }
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...result, passphrase }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
   verifyTournamentPassphrase: async (id, passphrase) => {
     const response = await fetchWithTimeout(`${API_URL}/api/tournaments/${id}/verify-passphrase`, {
       method: 'POST',

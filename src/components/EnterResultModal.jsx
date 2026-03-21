@@ -28,16 +28,34 @@ HandicapRow.propTypes = {
   onDecrement: PropTypes.func.isRequired,
 };
 
-const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = false, onSave, onCancel }) => {
+const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = false, passphrase = null, onSave, onCancel }) => {
   const bestOf = matchConfig.best_of || 5;
   const player1Name = match.participant_a?.name || 'Player 1';
   const player2Name = match.participant_b?.name || 'Player 2';
   const player1Id = match.participant_a?.participant_id;
   const player2Id = match.participant_b?.participant_id;
+  const isEditMode = match.status === 'completed' && !!match.result;
 
-  const [games, setGames] = useState(Array.from({ length: bestOf }, () => ({ p1: '', p2: '' })));
-  const [p1Start, setP1Start] = useState(0);
-  const [p2Start, setP2Start] = useState(0);
+  const initialGames = () => {
+    if (isEditMode && match.result?.game_scores?.length > 0) {
+      const existing = match.result.game_scores.map((gs) => ({
+        p1: String(gs.player1),
+        p2: String(gs.player2),
+      }));
+      // Pad to bestOf with empty rows
+      while (existing.length < bestOf) existing.push({ p1: '', p2: '' });
+      return existing;
+    }
+    return Array.from({ length: bestOf }, () => ({ p1: '', p2: '' }));
+  };
+
+  const [games, setGames] = useState(initialGames);
+  const [p1Start, setP1Start] = useState(
+    isEditMode ? (match.result?.handicap_starts?.player1 ?? 0) : 0
+  );
+  const [p2Start, setP2Start] = useState(
+    isEditMode ? (match.result?.handicap_starts?.player2 ?? 0) : 0
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -101,7 +119,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
 
     setSaving(true);
     try {
-      await api.submitTournamentMatchResult(tournamentId, match._id, {
+      const payload = {
         winner_id: result.winnerId,
         winner_name: result.winnerName,
         loser_id: result.loserId,
@@ -112,7 +130,12 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
         ...(isHandicap && (p1Start !== 0 || p2Start !== 0) && {
           handicap_starts: { player1: p1Start, player2: p2Start },
         }),
-      });
+      };
+      if (isEditMode) {
+        await api.editTournamentMatchResult(tournamentId, match._id, payload, passphrase);
+      } else {
+        await api.submitTournamentMatchResult(tournamentId, match._id, payload);
+      }
       onSave();
     } catch (err) {
       setError(err.message || 'Failed to save result');
@@ -128,7 +151,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b'>
           <div>
-            <h2 className='text-xl font-bold text-gray-900'>Enter Match Result</h2>
+            <h2 className='text-xl font-bold text-gray-900'>{isEditMode ? 'Edit Match Result' : 'Enter Match Result'}</h2>
             <p className='text-sm text-gray-500 mt-0.5'>{player1Name} vs {player2Name}</p>
           </div>
           <button onClick={onCancel} className='text-gray-400 hover:text-gray-600'>
@@ -251,7 +274,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
               disabled={saving || !result}
               className='flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
             >
-              {saving ? 'Saving...' : 'Save Result'}
+              {saving ? 'Saving...' : isEditMode ? 'Update Result' : 'Save Result'}
             </button>
           </div>
         </form>
@@ -265,6 +288,7 @@ EnterResultModal.propTypes = {
   tournamentId: PropTypes.string.isRequired,
   matchConfig: PropTypes.object,
   isHandicap: PropTypes.bool,
+  passphrase: PropTypes.string,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };

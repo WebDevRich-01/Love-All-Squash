@@ -7,6 +7,7 @@ const MonradTournamentView = ({
   matches,
   onScoreMatch,
   onEnterResult,
+  onEditResult,
   onBack,
   onEdit,
   isHandicap,
@@ -165,16 +166,30 @@ const MonradTournamentView = ({
           </div>
         </div>
 
-        {/* Game scores */}
+        {/* Game scores + edit icon */}
         {match.status === 'completed' && match.result?.game_scores?.length > 0 && (
           <div className='mb-3'>
             <div className='text-xs text-gray-600 mb-1'>Game Scores:</div>
-            <div className='flex space-x-1 text-sm'>
-              {match.result.game_scores.map((score, idx) => (
-                <span key={idx} className='bg-white px-2 py-1 rounded border text-xs'>
-                  {score.player1}-{score.player2}
-                </span>
-              ))}
+            <div className='flex items-center justify-between'>
+              <div className='flex space-x-1 text-sm'>
+                {match.result.game_scores.map((score, idx) => (
+                  <span key={idx} className='bg-white px-2 py-1 rounded border text-xs'>
+                    {score.player1}-{score.player2}
+                  </span>
+                ))}
+              </div>
+              {!isByeMatch && onEditResult && (
+                <button
+                  onClick={() => onEditResult(match)}
+                  className='text-gray-400 hover:text-blue-500 transition-colors p-1 rounded ml-2 flex-shrink-0'
+                  title='Edit result'
+                >
+                  <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2}
+                      d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -205,6 +220,7 @@ const MonradTournamentView = ({
             )}
           </div>
         )}
+
       </div>
     );
   };
@@ -439,6 +455,7 @@ MonradTournamentView.propTypes = {
   matches: PropTypes.array.isRequired,
   onScoreMatch: PropTypes.func.isRequired,
   onEnterResult: PropTypes.func,
+  onEditResult: PropTypes.func,
   onBack: PropTypes.func.isRequired,
   onEdit: PropTypes.func,
 };

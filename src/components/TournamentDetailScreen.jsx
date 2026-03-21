@@ -138,6 +138,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     setEnterResultMatch(match);
   };
 
+  const handleEditResult = (match) => {
+    withPassphrase(() => setEnterResultMatch(match));
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'draft': return 'bg-gray-100 text-gray-800';
@@ -302,6 +306,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           matches={matches}
           onScoreMatch={handleScoreMatch}
           onEnterResult={handleEnterResult}
+          onEditResult={handleEditResult}
           onBack={onBack}
           onEdit={handleEdit}
           isHandicap={!!tournament?.config?.match?.is_handicap}
@@ -337,6 +342,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             tournamentId={tournamentId}
             matchConfig={tournament?.config?.match}
             isHandicap={!!(tournament?.config?.match?.is_handicap)}
+            passphrase={getCachedPassphrase(tournamentId)}
             onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
             onCancel={() => setEnterResultMatch(null)}
           />
