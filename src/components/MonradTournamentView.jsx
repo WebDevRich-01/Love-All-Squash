@@ -88,6 +88,8 @@ const MonradTournamentView = ({
         const diffB = b.gamePointsFor - b.gamePointsAgainst;
         const gpDiff = diffB - diffA;
         if (gpDiff !== 0) return gpDiff;
+        const ptsForDiff = b.gamePointsFor - a.gamePointsFor;
+        if (ptsForDiff !== 0) return ptsForDiff;
         return a.seed - b.seed;
       })
       .map((p, i) => ({ ...p, rank: i + 1 }));
@@ -259,7 +261,7 @@ const MonradTournamentView = ({
                   {player.byes > 0 && ` (${player.byes} bye)`}
                 </div>
                 {isHandicap && (
-                  <div className='text-xs font-medium mt-0.5'>
+                  <div className='text-xs font-medium mt-0.5 space-x-2'>
                     <span className={
                       (player.gamePointsFor - player.gamePointsAgainst) > 0
                         ? 'text-green-600'
@@ -269,6 +271,9 @@ const MonradTournamentView = ({
                     }>
                       {(player.gamePointsFor - player.gamePointsAgainst) > 0 ? '+' : ''}
                       {player.gamePointsFor - player.gamePointsAgainst} pts diff
+                    </span>
+                    <span className='text-gray-400'>
+                      ({player.gamePointsFor} for)
                     </span>
                   </div>
                 )}
