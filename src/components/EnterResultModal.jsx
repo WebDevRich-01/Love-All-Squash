@@ -84,7 +84,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
     for (const g of validGames) {
       const s1 = parseInt(g.p1, 10);
       const s2 = parseInt(g.p2, 10);
-      if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) return null;
+      if (isNaN(s1) || isNaN(s2)) return null;
       if (s1 === s2) return null; // no draw in squash
       if (s1 > s2) p1Wins++;
       else p2Wins++;
@@ -200,7 +200,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
                     <td className='py-1.5 px-2'>
                       <input
                         type='number'
-                        min='0'
+                        min='-99'
                         value={game.p1}
                         onChange={(e) => updateScore(i, 'p1', e.target.value)}
                         className='w-full text-center border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base'
@@ -211,7 +211,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
                     <td className='py-1.5 px-2'>
                       <input
                         type='number'
-                        min='0'
+                        min='-99'
                         value={game.p2}
                         onChange={(e) => updateScore(i, 'p2', e.target.value)}
                         className='w-full text-center border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base'

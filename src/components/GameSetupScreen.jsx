@@ -48,6 +48,9 @@ export default function GameSetupScreen({
       eventName: "",
     }
   );
+  const [isHandicap, setIsHandicap] = useState(false);
+  const [p1StartScore, setP1StartScore] = useState(0);
+  const [p2StartScore, setP2StartScore] = useState(0);
 
   useEffect(() => {
     if (
@@ -98,15 +101,23 @@ export default function GameSetupScreen({
       saveEvent(settings.eventName);
     }
 
+    const gameSettings = {
+      ...settings,
+      eventName: settings.eventName || "",
+      isHandicap,
+      ...(isHandicap && {
+        player1StartScore: p1StartScore,
+        player2StartScore: p2StartScore,
+        player1Serving: null, // forces MatchSetupModal serving selection
+      }),
+    };
+
     if (isEditing && onReturnToMatch) {
-      useGameStore.getState().updateGameSettings(settings);
-      onReturnToMatch(settings);
+      useGameStore.getState().updateGameSettings(gameSettings);
+      onReturnToMatch(gameSettings);
     } else {
-      initializeGame({
-        ...settings,
-        eventName: settings.eventName || "",
-      });
-      onStartMatch(settings);
+      initializeGame(gameSettings);
+      onStartMatch(gameSettings);
     }
   };
 
@@ -402,6 +413,61 @@ export default function GameSetupScreen({
                     <option value={5}>Best of 5</option>
                   </select>
                 </div>
+
+                {/* Handicap toggle */}
+                <label className="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-gray-50 transition-colors duration-200 border-slate-400">
+                  <div className="relative mr-3">
+                    <input
+                      type="checkbox"
+                      checked={isHandicap}
+                      onChange={(e) => setIsHandicap(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors duration-200 ${
+                        isHandicap ? "bg-blue-500 border-blue-500" : "bg-white border-gray-300"
+                      }`}
+                    >
+                      {isHandicap && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="font-medium">Handicap match</span>
+                </label>
+
+                {/* Handicap starting scores */}
+                {isHandicap && (
+                  <div className="flex gap-4 pt-1">
+                    {[
+                      { label: settings.player1Name || "Player 1", val: p1StartScore, set: setP1StartScore },
+                      { label: settings.player2Name || "Player 2", val: p2StartScore, set: setP2StartScore },
+                    ].map(({ label, val, set }) => (
+                      <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-xs font-medium text-slate-600 text-center">{label}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => set((v) => v - 1)}
+                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-700 flex items-center justify-center"
+                          >
+                            −
+                          </button>
+                          <span className={`text-xl font-bold w-8 text-center ${val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-700'}`}>{val}</span>
+                          <button
+                            type="button"
+                            onClick={() => set((v) => v + 1)}
+                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-lg font-bold text-slate-700 flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex">

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useGameStore from '../stores/gameStore';
 import PropTypes from 'prop-types';
 import MatchHistoryTable from './MatchHistoryTable';
@@ -16,9 +17,11 @@ export default function GameWinModal({
 
   const player = winningPlayer === 1 ? player1 : player2;
   const playerName = player?.name || `Player ${winningPlayer}`;
+  const [isFinishing, setIsFinishing] = useState(false);
 
-  const handleFinishMatch = () => {
-    onFinishMatch();
+  const handleFinishMatch = async () => {
+    setIsFinishing(true);
+    await onFinishMatch();
   };
 
   return (
@@ -42,9 +45,10 @@ export default function GameWinModal({
 
             <button
               onClick={handleFinishMatch}
-              className='w-full p-3 bg-blue-500 text-white rounded hover:bg-blue-600'
+              disabled={isFinishing}
+              className='w-full p-3 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed'
             >
-              {isTournamentMatch ? 'Return to Tournament' : 'Return to Menu'}
+              {isFinishing ? 'Finishing...' : (isTournamentMatch ? 'Return to Tournament' : 'Return to Menu')}
             </button>
           </>
         ) : (

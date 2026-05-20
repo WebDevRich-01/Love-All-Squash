@@ -5,7 +5,7 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import LandingScreen from './components/LandingScreen';
 import GameSetupScreen from './components/GameSetupScreen';
@@ -45,6 +45,7 @@ function App() {
   const [hasActiveMatch, setHasActiveMatch] = useState(false);
   const [gameSettings, setGameSettings] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const isSubmitting = useRef(false);
 
   // Check if there's an active match when the component mounts
   useEffect(() => {
@@ -75,6 +76,9 @@ function App() {
   };
 
   const handleFinishMatch = async () => {
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+
     const gameState = useGameStore.getState();
     const tournamentMatchContext = gameState.tournamentMatchContext;
 
@@ -129,6 +133,7 @@ function App() {
         );
       } catch (error) {
         if (import.meta.env.DEV) console.error('Error submitting tournament match result:', error);
+        isSubmitting.current = false;
         // Show the error and keep the user on the current screen so they can retry
         setSubmitError(
           'Failed to save the match result. Please check your connection and try again.'
@@ -136,6 +141,7 @@ function App() {
         return; // Don't navigate — let the user retry or skip
       }
 
+      isSubmitting.current = false;
       useGameStore.getState().resetGame();
       setTournamentMatchContext(null);
       setHasActiveMatch(false);
@@ -143,6 +149,7 @@ function App() {
       return;
     }
 
+    isSubmitting.current = false;
     useGameStore.getState().resetGame();
     setHasActiveMatch(false);
     navigate('/');

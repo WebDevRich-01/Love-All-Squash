@@ -5,6 +5,7 @@ import PlayerButton from './PlayerButton';
 import LetDecisionModal from './LetDecisionModal';
 import GameWinModal from './GameWinModal';
 import MatchHistoryTable from './MatchHistoryTable';
+import MatchSetupModal from './MatchSetupModal';
 import PointIndicator from './PointIndicator';
 import { useNavigate } from 'react-router-dom';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -52,7 +53,6 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
     isMatchPoint,
     restorePersistedGame,
     servingDecided,
-    selectServer,
     tournamentMatchContext,
   } = useGameStore();
 
@@ -274,24 +274,14 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
                 <PointIndicator type='game' />
               )}
             </div>
-            {!servingDecided ? (
-              <button
-                onClick={() => selectServer(1)}
-                className='w-full py-3 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-colors'
-              >
-                Serving
-              </button>
-            ) : (
-              <>
-                <PlayerButton playerNum={1} />
-                <button
-                  onClick={() => handleLetButtonClick(1)}
-                  className='btn-let w-full mt-3'
-                >
-                  Let
-                </button>
-              </>
-            )}
+            <PlayerButton playerNum={1} />
+            <button
+              onClick={() => handleLetButtonClick(1)}
+              className='btn-let w-full mt-3'
+              disabled={!servingDecided}
+            >
+              Let
+            </button>
           </div>
 
           <div className='flex-1'>
@@ -314,24 +304,14 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
                 <PointIndicator type='game' />
               )}
             </div>
-            {!servingDecided ? (
-              <button
-                onClick={() => selectServer(2)}
-                className='w-full py-3 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-colors'
-              >
-                Serving
-              </button>
-            ) : (
-              <>
-                <PlayerButton playerNum={2} />
-                <button
-                  onClick={() => handleLetButtonClick(2)}
-                  className='btn-let w-full mt-3'
-                >
-                  Let
-                </button>
-              </>
-            )}
+            <PlayerButton playerNum={2} />
+            <button
+              onClick={() => handleLetButtonClick(2)}
+              className='btn-let w-full mt-3'
+              disabled={!servingDecided}
+            >
+              Let
+            </button>
           </div>
         </div>
       </div>
@@ -353,6 +333,11 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
           onStartNext={handleStartNext}
           onFinishMatch={handleFinishMatch}
         />
+      )}
+
+      {/* Match setup modal — shown before serving is decided */}
+      {!servingDecided && (
+        <MatchSetupModal onClose={() => {}} />
       )}
 
       {/* Let decision modal */}

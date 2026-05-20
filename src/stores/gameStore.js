@@ -11,6 +11,9 @@ const useGameStore = create((set, get) => ({
     pointsToWin: 15,
     clearPoints: 2,
     bestOf: 5,
+    isHandicap: false,
+    player1StartScore: 0,
+    player2StartScore: 0,
   },
 
   // Match state
@@ -703,6 +706,9 @@ const useGameStore = create((set, get) => ({
         pointsToWin: settings.pointsToWin,
         clearPoints: settings.clearPoints,
         bestOf: settings.bestOf,
+        isHandicap: settings.isHandicap ?? false,
+        player1StartScore: settings.player1StartScore ?? 0,
+        player2StartScore: settings.player2StartScore ?? 0,
       },
       servingDecided: settings.player1Serving !== null && settings.player1Serving !== undefined,
       player1: {

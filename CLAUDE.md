@@ -5,7 +5,7 @@ React 19 + Vite PWA for court-side squash scoring.
 ## Commands
 
 ```bash
-npm run dev       # Start dev server at http://localhost:5173
+npm run dev       # Start dev server at http://localhost:5174
 npm run build     # Production build → dist/
 npm run preview   # Preview production build locally
 npm run lint      # ESLint

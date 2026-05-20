@@ -35,6 +35,32 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     loadTournamentData();
   }, [tournamentId]);
 
+  // Auto-refresh every 30s when tournament is active
+  useEffect(() => {
+    if (!tournament || tournament.status !== 'active') return;
+    const interval = setInterval(async () => {
+      if (loading) return;
+      try {
+        const data = await api.getTournament(tournamentId);
+        setTournament(data.tournament);
+        setParticipants(data.participants);
+        setMatches(data.matches);
+        setGroups(data.groups);
+        if (data.tournament.status !== 'draft') {
+          const [standingsData, playableData] = await Promise.all([
+            api.getTournamentStandings(tournamentId),
+            api.getPlayableTournamentMatches(tournamentId),
+          ]);
+          setStandings(standingsData);
+          setPlayableMatches(playableData);
+        }
+      } catch {
+        // Silent — don't surface polling errors
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [tournament?.status, tournamentId]);
+
   const loadTournamentData = async () => {
     try {
       setLoading(true);
