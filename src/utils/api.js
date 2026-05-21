@@ -298,6 +298,54 @@ const api = {
     return response.json();
   },
 
+  updateTeamRoster: async (tournamentId, participantId, roster, passphrase) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/participants/${participantId}/roster`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ roster, passphrase }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  submitTeamFixtureResult: async (tournamentId, matchId, result) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(result),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  editTeamFixtureResult: async (tournamentId, matchId, result, passphrase) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...result, passphrase }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
   deleteTournament: async (id) => {
     if (isDevelopment) {
       return new Promise((resolve) => {

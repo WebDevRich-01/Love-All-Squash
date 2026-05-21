@@ -101,11 +101,84 @@ const SortableParticipantItem = ({
   );
 };
 
+const emptyDivision = (name) => ({ name, teams: [] });
+const emptyTeam = (name = '') => ({
+  id: `team-${Date.now()}-${Math.random()}`,
+  name,
+  color: 'border-blue-500',
+  roster: [
+    { string_number: 1, player_name: '' },
+    { string_number: 2, player_name: '' },
+    { string_number: 3, player_name: '' },
+    { string_number: 4, player_name: '' },
+    { string_number: 5, player_name: '' },
+  ],
+});
+
+const TEST_DIVISIONS = [
+  {
+    name: 'Division A',
+    teams: [
+      { name: 'Brown Hen',          players: ['Alice Smith', 'Ben Clarke', 'Chris Day', 'Dan Evans', 'Ed Fox'] },
+      { name: 'Kings Arms',         players: ['Fiona Gray', 'George Hall', 'Harry Ince', 'Ian Jones', 'Jack King'] },
+      { name: 'Paget Arms',         players: ['Karen Lee', 'Liam Moon', 'Mike Nash', 'Nick Owen', 'Oliver Park'] },
+      { name: 'Plume of Feathers',  players: ['Paul Quinn', 'Rachel Ross', 'Sam Stone', 'Tom Upton', 'Uma Vance'] },
+      { name: 'Curry House',        players: ['Vera Ward', 'Will Xiao', 'Xena Young', 'Yusuf Zane', 'Zoe Adams'] },
+    ],
+  },
+  {
+    name: 'Division B',
+    teams: [
+      { name: 'White Hart',   players: ['Amy Baker', 'Brian Cole', 'Carol Dunn', 'David Edge', 'Emma Ford'] },
+      { name: 'Red Lion',     players: ['Frank Grant', 'Grace Hill', 'Henry Irwin', 'Iris James', 'Jake Kent'] },
+      { name: 'Crown Inn',    players: ['Laura Long', 'Mark Munn', 'Nina Norris', 'Oscar Pine', 'Peter Quinn'] },
+      { name: 'Railway Tavern', players: ['Quinn Reed', 'Rosa Shaw', 'Steve Todd', 'Tracy Underwood', 'Uma Vale'] },
+      { name: 'Bear Inn',     players: ['Victor Webb', 'Wendy Xin', 'Xavier York', 'Yasmin Zulu', 'Zack Allen'] },
+    ],
+  },
+];
+
+const makeTestDivisions = () =>
+  TEST_DIVISIONS.map((div) => ({
+    name: div.name,
+    teams: div.teams.map((t) => ({
+      id: `team-${Date.now()}-${Math.random()}`,
+      name: t.name,
+      color: 'border-blue-500',
+      roster: t.players.map((player_name, i) => ({ string_number: i + 1, player_name })),
+    })),
+  }));
+
 const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, participants: initialParticipants }) => {
   const editMode = !!tournament;
 
   const [formData, setFormData] = useState(() => {
     if (editMode) {
+      // Reconstruct divisions for team_round_robin from saved participants
+      let divisions = [emptyDivision('Division A'), emptyDivision('Division B')];
+      if (tournament.format === 'team_round_robin' && initialParticipants?.length > 0) {
+        const divCount = tournament.config?.divisions?.count || 2;
+        const byDiv = {};
+        initialParticipants.forEach((p) => {
+          const idx = p.division_index ?? 0;
+          if (!byDiv[idx]) byDiv[idx] = [];
+          byDiv[idx].push(p);
+        });
+        divisions = Array.from({ length: divCount }, (_, i) => ({
+          name: `Division ${String.fromCharCode(65 + i)}`,
+          teams: (byDiv[i] || [])
+            .sort((a, b) => (a.seed || 999) - (b.seed || 999))
+            .map((p) => ({
+              id: `team-${p._id}-${i}`,
+              name: p.name,
+              color: p.color || 'border-blue-500',
+              roster: p.roster?.length > 0
+                ? p.roster
+                : [1, 2, 3, 4, 5].map((n) => ({ string_number: n, player_name: '' })),
+            })),
+        }));
+      }
+
       return {
         name: tournament.name || '',
         format: tournament.format || 'single_elimination',
@@ -121,6 +194,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           clear_points: tournament.config?.match?.clear_points || 2,
           is_handicap: tournament.config?.match?.is_handicap || false,
         },
+        divisions,
       };
     }
     return {
@@ -132,11 +206,13 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       passphrase: '',
       participants: [],
       matchSettings: {
-        points_to_win: 15,
+        points_to_win: 11,
         best_of: 5,
         clear_points: 2,
         is_handicap: false,
       },
+      // Team round robin specific
+      divisions: [emptyDivision('Division A'), emptyDivision('Division B')],
     };
   });
 
@@ -294,7 +370,20 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       return;
     }
 
-    if (formData.participants.length < 2) {
+    const isTeamRR = formData.format === 'team_round_robin';
+
+    if (isTeamRR) {
+      const allTeams = formData.divisions.flatMap((d) => d.teams);
+      if (allTeams.length < 2) {
+        setError('Add at least 2 teams across all divisions');
+        return;
+      }
+      const emptyDiv = formData.divisions.find((d) => d.teams.length === 0);
+      if (emptyDiv) {
+        setError(`${emptyDiv.name} has no teams — add at least one team or remove the division`);
+        return;
+      }
+    } else if (formData.participants.length < 2) {
       setError('At least 2 participants are required');
       return;
     }
@@ -302,8 +391,33 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
     try {
       setLoading(true);
 
-      const participants = formData.participants.map(({ id, ...p }) => p);
-      const config = getDefaultConfig(formData.format);
+      let participants, config;
+
+      if (isTeamRR) {
+        // Flatten divisions into a single participant list with seeds
+        let seed = 1;
+        participants = formData.divisions.flatMap((div, divIdx) =>
+          div.teams.map((team) => ({
+            name: team.name,
+            seed: seed++,
+            color: team.color || 'border-blue-500',
+            roster: team.roster.filter((r) => r.player_name.trim()),
+            division_index: divIdx,
+          }))
+        );
+        config = {
+          match: {
+            best_of: formData.matchSettings.best_of,
+            points_to_win: formData.matchSettings.points_to_win,
+            clear_points: formData.matchSettings.clear_points,
+          },
+          divisions: { count: formData.divisions.length },
+        };
+      } else {
+        participants = formData.participants.map(({ id, ...p }) => p);
+        config = getDefaultConfig(formData.format);
+      }
+
       const base = {
         name: formData.name.trim(),
         format: formData.format,
@@ -654,7 +768,168 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
               </div>
             </div>
 
-            {/* Participants */}
+            {/* ── Team Round Robin: division + team input ── */}
+            {formData.format === 'team_round_robin' && (
+              <div className='space-y-4'>
+                <div className='flex items-center justify-between'>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Divisions &amp; Teams *
+                  </label>
+                  <div className='flex items-center gap-3'>
+                    {import.meta.env.DEV && (
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            name: prev.name || 'Summer Showdown 2025',
+                            passphrase: prev.passphrase || 'test',
+                            divisions: makeTestDivisions(),
+                          }))
+                        }
+                        className='text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-2 py-1 rounded font-medium'
+                      >
+                        Fill test data
+                      </button>
+                    )}
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          divisions: [
+                            ...prev.divisions,
+                            emptyDivision(`Division ${String.fromCharCode(65 + prev.divisions.length)}`),
+                          ],
+                        }))
+                      }
+                      className='text-sm text-blue-600 hover:text-blue-800'
+                    >
+                      + Add Division
+                    </button>
+                  </div>
+                </div>
+
+                {formData.divisions.map((div, divIdx) => (
+                  <div key={divIdx} className='border border-gray-200 rounded-lg p-4 space-y-3'>
+                    {/* Division header */}
+                    <div className='flex items-center gap-2'>
+                      <input
+                        type='text'
+                        value={div.name}
+                        onChange={(e) =>
+                          setFormData((prev) => {
+                            const divisions = [...prev.divisions];
+                            divisions[divIdx] = { ...divisions[divIdx], name: e.target.value };
+                            return { ...prev, divisions };
+                          })
+                        }
+                        className='flex-1 font-semibold text-gray-800 border-b border-transparent focus:border-blue-400 focus:outline-none bg-transparent'
+                      />
+                      {formData.divisions.length > 1 && (
+                        <button
+                          type='button'
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              divisions: prev.divisions.filter((_, i) => i !== divIdx),
+                            }))
+                          }
+                          className='text-xs text-red-500 hover:text-red-700'
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Team list */}
+                    {div.teams.map((team, teamIdx) => (
+                      <div key={team.id} className='bg-gray-50 rounded-lg p-3 space-y-2'>
+                        <div className='flex items-center gap-2'>
+                          <input
+                            type='text'
+                            value={team.name}
+                            onChange={(e) =>
+                              setFormData((prev) => {
+                                const divisions = [...prev.divisions];
+                                const teams = [...divisions[divIdx].teams];
+                                teams[teamIdx] = { ...teams[teamIdx], name: e.target.value };
+                                divisions[divIdx] = { ...divisions[divIdx], teams };
+                                return { ...prev, divisions };
+                              })
+                            }
+                            placeholder='Team name'
+                            className='flex-1 font-medium border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
+                          />
+                          <button
+                            type='button'
+                            onClick={() =>
+                              setFormData((prev) => {
+                                const divisions = [...prev.divisions];
+                                divisions[divIdx] = {
+                                  ...divisions[divIdx],
+                                  teams: divisions[divIdx].teams.filter((_, i) => i !== teamIdx),
+                                };
+                                return { ...prev, divisions };
+                              })
+                            }
+                            className='text-red-400 hover:text-red-600 text-lg leading-none'
+                          >
+                            ×
+                          </button>
+                        </div>
+                        {/* String roster */}
+                        <div className='grid grid-cols-5 gap-1'>
+                          {team.roster.map((row, strIdx) => (
+                            <div key={strIdx} className='flex flex-col items-center gap-0.5'>
+                              <span className='text-xs text-gray-400'>S{row.string_number}</span>
+                              <input
+                                type='text'
+                                value={row.player_name}
+                                onChange={(e) =>
+                                  setFormData((prev) => {
+                                    const divisions = [...prev.divisions];
+                                    const teams = [...divisions[divIdx].teams];
+                                    const roster = [...teams[teamIdx].roster];
+                                    roster[strIdx] = { ...roster[strIdx], player_name: e.target.value };
+                                    teams[teamIdx] = { ...teams[teamIdx], roster };
+                                    divisions[divIdx] = { ...divisions[divIdx], teams };
+                                    return { ...prev, divisions };
+                                  })
+                                }
+                                placeholder='Name'
+                                className='w-full text-xs border border-gray-200 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 text-center'
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add team button */}
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setFormData((prev) => {
+                          const divisions = [...prev.divisions];
+                          divisions[divIdx] = {
+                            ...divisions[divIdx],
+                            teams: [...divisions[divIdx].teams, emptyTeam()],
+                          };
+                          return { ...prev, divisions };
+                        })
+                      }
+                      className='w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors'
+                    >
+                      + Add Team to {div.name}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Participants (individual formats only) */}
+            {formData.format !== 'team_round_robin' && (
             <div>
               <label className='block text-sm font-medium text-gray-700 mb-2'>
                 Participants * (minimum 2)
@@ -768,6 +1043,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                 </div>
               )}
             </div>
+            )} {/* end individual participants */}
           </div>
 
           {/* Footer */}
@@ -781,7 +1057,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
             </button>
             <button
               type='submit'
-              disabled={loading || formData.participants.length < 2}
+              disabled={loading || (formData.format !== 'team_round_robin' && formData.participants.length < 2)}
               className='px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
             >
               {loading ? (editMode ? 'Saving...' : 'Creating...') : (editMode ? 'Save Changes' : 'Create Tournament')}

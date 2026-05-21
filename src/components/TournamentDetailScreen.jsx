@@ -9,6 +9,7 @@ import CreateTournamentModal from './CreateTournamentModal';
 import EnterResultModal from './EnterResultModal';
 import TournamentEditOptionsModal from './TournamentEditOptionsModal';
 import HandicapSetupModal from './HandicapSetupModal';
+import TeamFixtureModal from './TeamFixtureModal';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [tournament, setTournament] = useState(null);
@@ -28,6 +29,8 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
   const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [handicapMatch, setHandicapMatch] = useState(null);
+  const [teamFixture, setTeamFixture] = useState(null); // active fixture for TeamFixtureModal
+  const [isEditFixture, setIsEditFixture] = useState(false);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -316,6 +319,260 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             onUpdate={handleTournamentUpdate}
             tournament={tournament}
             participants={participants}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Team Round Robin view ─────────────────────────────────────────────────
+  if (tournament.format === 'team_round_robin') {
+    const participantMap = Object.fromEntries(participants.map((p) => [p._id, p]));
+
+    // Group fixtures by division group
+    const fixturesByGroup = groups.reduce((acc, g) => {
+      acc[g._id] = { group: g, fixtures: [] };
+      return acc;
+    }, {});
+    matches.forEach((m) => {
+      if (m.group_id && fixturesByGroup[m.group_id]) {
+        fixturesByGroup[m.group_id].fixtures.push(m);
+      }
+    });
+
+    return (
+      <div className='min-h-screen bg-gray-50'>
+        {/* Header */}
+        <div className='bg-white shadow-sm'>
+          <div className='max-w-4xl mx-auto px-4 py-5'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <button onClick={onBack} className='p-2 text-gray-500 hover:text-gray-700'>
+                  ←
+                </button>
+                <div>
+                  <h1 className='text-xl font-bold text-gray-900'>{tournament.name}</h1>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    tournament.status === 'active' ? 'bg-green-100 text-green-700' :
+                    tournament.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {tournament.status === 'draft' ? 'Draft' : tournament.status === 'active' ? 'In Progress' : 'Completed'}
+                  </span>
+                </div>
+              </div>
+              {tournament.status === 'draft' && (
+                <button
+                  onClick={handleEdit}
+                  className='px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700'
+                >
+                  Start
+                </button>
+              )}
+              {tournament.status === 'active' && (
+                <button
+                  onClick={handleEdit}
+                  className='p-2 text-gray-500 hover:text-gray-700'
+                  title='Edit tournament'
+                >
+                  ✎
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className='max-w-4xl mx-auto px-4 py-6 space-y-6'>
+          {actionError && (
+            <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm'>
+              {actionError}
+            </div>
+          )}
+
+          {tournament.status === 'draft' && (
+            <div className='bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800'>
+              Tournament is in draft. Click <strong>Start</strong> to generate the fixtures.
+            </div>
+          )}
+
+          {/* Division standings + fixtures */}
+          {Object.values(fixturesByGroup).map(({ group, fixtures }) => {
+            const standings = group.standings || [];
+            const sortedFixtures = [...fixtures].sort((a, b) =>
+              (a.match_number || '').localeCompare(b.match_number || '')
+            );
+
+            return (
+              <div key={group._id} className='bg-white rounded-xl shadow-sm overflow-hidden'>
+                <div className='px-4 py-3 bg-gray-50 border-b'>
+                  <h2 className='font-bold text-gray-800'>{group.name}</h2>
+                </div>
+
+                {/* Standings table */}
+                {standings.length > 0 && (
+                  <div className='overflow-x-auto'>
+                    <table className='w-full text-sm'>
+                      <thead>
+                        <tr className='text-xs text-gray-500 uppercase border-b'>
+                          <th className='text-left px-4 py-2'>#</th>
+                          <th className='text-left px-4 py-2'>Team</th>
+                          <th className='text-center px-2 py-2'>P</th>
+                          <th className='text-center px-2 py-2'>W</th>
+                          <th className='text-center px-2 py-2'>L</th>
+                          <th className='text-center px-2 py-2'>GF</th>
+                          <th className='text-center px-2 py-2'>GA</th>
+                          <th className='text-center px-2 py-2'>+/-</th>
+                          <th className='text-center px-2 py-2 font-bold'>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map((row, i) => (
+                          <tr key={i} className={`border-b last:border-0 ${i === 0 ? 'bg-green-50' : ''}`}>
+                            <td className='px-4 py-2 text-gray-400 font-medium'>{i + 1}</td>
+                            <td className='px-4 py-2 font-semibold text-gray-800'>{row.name}</td>
+                            <td className='text-center px-2 py-2 text-gray-600'>{row.played}</td>
+                            <td className='text-center px-2 py-2 text-gray-600'>{row.wins}</td>
+                            <td className='text-center px-2 py-2 text-gray-600'>{row.losses}</td>
+                            <td className='text-center px-2 py-2 text-gray-600'>{row.games_won}</td>
+                            <td className='text-center px-2 py-2 text-gray-600'>{row.games_lost}</td>
+                            <td className={`text-center px-2 py-2 font-medium ${
+                              row.games_won - row.games_lost > 0 ? 'text-green-600' :
+                              row.games_won - row.games_lost < 0 ? 'text-red-500' : 'text-gray-500'
+                            }`}>
+                              {row.games_won - row.games_lost > 0 ? '+' : ''}{row.games_won - row.games_lost}
+                            </td>
+                            <td className='text-center px-2 py-2 font-bold text-gray-800'>{row.league_points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Fixtures list */}
+                {sortedFixtures.length > 0 && (
+                  <div className='border-t'>
+                    <div className='px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50'>
+                      Fixtures
+                    </div>
+                    {sortedFixtures.map((fixture) => {
+                      const tA = participantMap[fixture.participant_a?.participant_id];
+                      const tB = participantMap[fixture.participant_b?.participant_id];
+                      const done = fixture.status === 'completed' || fixture.status === 'walkover';
+                      const result = fixture.result;
+
+                      return (
+                        <button
+                          key={fixture._id}
+                          onClick={() => {
+                            if (done) {
+                              withPassphrase(() => {
+                                setIsEditFixture(true);
+                                setTeamFixture(fixture);
+                              });
+                            } else {
+                              setIsEditFixture(false);
+                              setTeamFixture(fixture);
+                            }
+                          }}
+                          className='w-full flex items-center justify-between px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-blue-50 cursor-pointer'
+                        >
+                          <div className='flex-1 min-w-0'>
+                            <div className='flex items-center gap-2 flex-wrap'>
+                              <span className={`font-semibold text-sm ${
+                                done && result?.winner_participant_id?.toString() === tA?._id?.toString()
+                                  ? 'text-green-700' : 'text-gray-800'
+                              }`}>
+                                {fixture.participant_a?.name || '?'}
+                              </span>
+                              <span className='text-gray-400 text-xs'>vs</span>
+                              <span className={`font-semibold text-sm ${
+                                done && result?.winner_participant_id?.toString() === tB?._id?.toString()
+                                  ? 'text-green-700' : 'text-gray-800'
+                              }`}>
+                                {fixture.participant_b?.name || '?'}
+                              </span>
+                            </div>
+                            {done && result && (
+                              <p className='text-xs text-gray-500 mt-0.5'>
+                                {result.team_a_games_total} – {result.team_b_games_total} games
+                              </p>
+                            )}
+                          </div>
+                          <div className='shrink-0 ml-3'>
+                            {done ? (
+                              <span className='text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium'>
+                                Done · Edit
+                              </span>
+                            ) : (
+                              <span className='text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium'>
+                                Enter result →
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Empty state for draft */}
+          {tournament.status === 'draft' && groups.length === 0 && (
+            <div className='text-center py-10 text-gray-400'>
+              <p className='text-lg mb-1'>No fixtures yet</p>
+              <p className='text-sm'>Start the tournament to generate all division fixtures</p>
+            </div>
+          )}
+        </div>
+
+        {/* Modals */}
+        {teamFixture && (() => {
+          const tA = participants.find((p) => p._id === teamFixture.participant_a?.participant_id?.toString() || p._id?.toString() === teamFixture.participant_a?.participant_id?.toString());
+          const tB = participants.find((p) => p._id === teamFixture.participant_b?.participant_id?.toString() || p._id?.toString() === teamFixture.participant_b?.participant_id?.toString());
+          if (!tA || !tB) return null;
+          return (
+            <TeamFixtureModal
+              fixture={teamFixture}
+              teamA={tA}
+              teamB={tB}
+              tournamentId={tournamentId}
+              isEdit={isEditFixture}
+              passphrase={getCachedPassphrase(tournamentId)}
+              onClose={() => { setTeamFixture(null); setIsEditFixture(false); }}
+              onResultSaved={() => { setTeamFixture(null); setIsEditFixture(false); loadTournamentData(); }}
+            />
+          );
+        })()}
+
+        {showPassphraseModal && (
+          <PassphraseModal
+            tournamentId={tournamentId}
+            onSuccess={handlePassphraseSuccess}
+            onCancel={() => { setShowPassphraseModal(false); pendingAction.current = null; }}
+          />
+        )}
+        {showEditModal && (
+          <CreateTournamentModal
+            tournament={tournament}
+            participants={participants}
+            onClose={() => setShowEditModal(false)}
+            onUpdate={async (data) => {
+              await api.updateTournament(tournamentId, data, getCachedPassphrase(tournamentId));
+              setShowEditModal(false);
+              loadTournamentData();
+            }}
+          />
+        )}
+        {showEditOptionsModal && (
+          <TournamentEditOptionsModal
+            tournamentId={tournamentId}
+            passphrase={getCachedPassphrase(tournamentId)}
+            onEditPlayers={handleEditPlayers}
+            onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
+            onClose={() => setShowEditOptionsModal(false)}
           />
         )}
       </div>
