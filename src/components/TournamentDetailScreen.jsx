@@ -185,6 +185,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     const names = {
       single_elimination: 'Single Elimination',
       monrad: 'Monrad (Swiss)',
+      team_round_robin: 'Team Round Robin',
     };
     return names[format] || format;
   };
@@ -210,8 +211,8 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     );
   }
 
-  // ── Draft state ──────────────────────────────────────────────────────────────
-  if (tournament.status === 'draft') {
+  // ── Draft state (individual formats only — team_round_robin has its own view) ─
+  if (tournament.status === 'draft' && tournament.format !== 'team_round_robin') {
     const mc = tournament.config?.match || {};
     return (
       <div className='min-h-screen bg-gray-50'>
@@ -340,62 +341,119 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       }
     });
 
+    // Group participants into divisions (used for draft preview)
+    const divCount = tournament.config?.divisions?.count || 2;
+    const draftDivisions = Array.from({ length: divCount }, (_, i) => ({
+      name: `Division ${String.fromCharCode(65 + i)}`,
+      teams: participants
+        .filter((p) => (p.division_index ?? 0) === i)
+        .sort((a, b) => (a.seed || 999) - (b.seed || 999)),
+    }));
+
+    const statusLabel = tournament.status === 'draft' ? 'Draft'
+      : tournament.status === 'active' ? 'In Progress' : 'Completed';
+    const statusClass = tournament.status === 'active' ? 'bg-green-100 text-green-700'
+      : tournament.status === 'completed' ? 'bg-blue-100 text-blue-700'
+      : 'bg-gray-100 text-gray-600';
+
     return (
-      <div className='min-h-screen bg-gray-50'>
+      <div className='min-h-screen bg-gray-50 flex flex-col'>
         {/* Header */}
-        <div className='bg-white shadow-sm'>
-          <div className='max-w-4xl mx-auto px-4 py-5'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center gap-3'>
-                <button onClick={onBack} className='p-2 text-gray-500 hover:text-gray-700'>
-                  ←
-                </button>
-                <div>
-                  <h1 className='text-xl font-bold text-gray-900'>{tournament.name}</h1>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    tournament.status === 'active' ? 'bg-green-100 text-green-700' :
-                    tournament.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {tournament.status === 'draft' ? 'Draft' : tournament.status === 'active' ? 'In Progress' : 'Completed'}
+        <div className='bg-white shadow-sm shrink-0'>
+          <div className='px-4 lg:px-8 py-4 flex items-center justify-between gap-4'>
+            <div className='flex items-center gap-3 min-w-0'>
+              <button onClick={onBack} className='p-1.5 text-gray-500 hover:text-gray-700 shrink-0'>
+                <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 19l-7-7 7-7' />
+                </svg>
+              </button>
+              <div className='min-w-0'>
+                <h1 className='text-base lg:text-xl font-bold text-gray-900 truncate'>{tournament.name}</h1>
+                <div className='hidden sm:flex items-center gap-2 mt-0.5'>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusClass}`}>
+                    {statusLabel}
+                  </span>
+                  <span className='text-xs text-gray-400'>
+                    {divCount} divisions · {participants.length} teams
                   </span>
                 </div>
               </div>
+            </div>
+            <div className='flex items-center gap-2 shrink-0'>
               {tournament.status === 'draft' && (
-                <button
-                  onClick={handleEdit}
-                  className='px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700'
-                >
-                  Start
-                </button>
+                <>
+                  <button onClick={handleEditTournament} className='px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50'>
+                    Edit
+                  </button>
+                  <button onClick={handleStartTournament} className='px-4 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium'>
+                    <span className='sm:hidden'>Start</span>
+                    <span className='hidden sm:inline'>Start Tournament</span>
+                  </button>
+                </>
               )}
               {tournament.status === 'active' && (
-                <button
-                  onClick={handleEdit}
-                  className='p-2 text-gray-500 hover:text-gray-700'
-                  title='Edit tournament'
-                >
-                  ✎
+                <button onClick={handleEdit} className='p-2 text-gray-500 hover:text-gray-700' title='Edit tournament'>
+                  <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                  </svg>
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        <div className='max-w-4xl mx-auto px-4 py-6 space-y-6'>
+        <div className='flex-1 px-4 lg:px-8 py-6 space-y-6'>
           {actionError && (
             <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm'>
               {actionError}
             </div>
           )}
 
+          {/* ── Draft: show division/team/roster cards ── */}
           {tournament.status === 'draft' && (
-            <div className='bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800'>
-              Tournament is in draft. Click <strong>Start</strong> to generate the fixtures.
+            <div className='space-y-4'>
+              <div className='bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800'>
+                Tournament is in draft. Click <strong>Start Tournament</strong> to generate all fixtures.
+              </div>
+              <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
+                {draftDivisions.map((div, divIdx) => (
+                  <div key={divIdx} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                    <div className='px-4 py-3 bg-gray-50 border-b flex items-center justify-between'>
+                      <h2 className='font-bold text-gray-800'>{div.name}</h2>
+                      <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
+                    </div>
+                    <div className='divide-y divide-gray-100'>
+                      {div.teams.map((team) => (
+                        <div key={team._id} className='px-4 py-3'>
+                          <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
+                          <div className='grid grid-cols-5 gap-2'>
+                            {[1, 2, 3, 4, 5].map((sn) => {
+                              const player = team.roster?.find((r) => r.string_number === sn);
+                              return (
+                                <div key={sn} className='text-center'>
+                                  <span className='block text-xs text-gray-400 mb-0.5'>S{sn}</span>
+                                  <span className='block text-xs font-medium text-gray-700 truncate'>
+                                    {player?.player_name || <span className='text-gray-300'>—</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {div.teams.length === 0 && (
+                        <p className='px-4 py-3 text-sm text-gray-400'>No teams assigned</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Division standings + fixtures */}
+          {/* Division standings + fixtures (active/completed state) */}
+          {Object.values(fixturesByGroup).length > 0 && (
+          <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
           {Object.values(fixturesByGroup).map(({ group, fixtures }) => {
             const standings = group.standings || [];
             const sortedFixtures = [...fixtures].sort((a, b) =>
@@ -518,13 +576,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
               </div>
             );
           })}
-
-          {/* Empty state for draft */}
-          {tournament.status === 'draft' && groups.length === 0 && (
-            <div className='text-center py-10 text-gray-400'>
-              <p className='text-lg mb-1'>No fixtures yet</p>
-              <p className='text-sm'>Start the tournament to generate all division fixtures</p>
-            </div>
+          </div>
           )}
         </div>
 
