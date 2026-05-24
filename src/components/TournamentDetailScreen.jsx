@@ -538,6 +538,29 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       const tB = participantMap[fixture.participant_b?.participant_id];
                       const done = fixture.status === 'completed' || fixture.status === 'walkover';
                       const result = fixture.result;
+                      const draftCount = fixture.draft_string_results?.length ?? 0;
+                      const inProgress = !done && draftCount > 0;
+
+                      let statusBadge;
+                      if (done) {
+                        statusBadge = (
+                          <span className='text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
+                            Edit
+                          </span>
+                        );
+                      } else if (inProgress) {
+                        statusBadge = (
+                          <span className='text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
+                            In Progress {draftCount}/5
+                          </span>
+                        );
+                      } else {
+                        statusBadge = (
+                          <span className='text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
+                            Not started
+                          </span>
+                        );
+                      }
 
                       return (
                         <button
@@ -553,17 +576,11 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                         >
                           <div className='flex-1 min-w-0'>
                             <div className='flex items-center gap-2 flex-wrap'>
-                              <span className={`font-semibold text-sm ${
-                                done && result?.winner_participant_id?.toString() === tA?._id?.toString()
-                                  ? 'text-green-700' : 'text-gray-800'
-                              }`}>
+                              <span className='font-semibold text-sm text-gray-800'>
                                 {fixture.participant_a?.name || '?'}
                               </span>
                               <span className='text-gray-400 text-xs'>vs</span>
-                              <span className={`font-semibold text-sm ${
-                                done && result?.winner_participant_id?.toString() === tB?._id?.toString()
-                                  ? 'text-green-700' : 'text-gray-800'
-                              }`}>
+                              <span className='font-semibold text-sm text-gray-800'>
                                 {fixture.participant_b?.name || '?'}
                               </span>
                             </div>
@@ -574,15 +591,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                             )}
                           </div>
                           <div className='shrink-0 ml-3'>
-                            {done ? (
-                              <span className='text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium'>
-                                Done · Edit
-                              </span>
-                            ) : (
-                              <span className='text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium'>
-                                Enter result →
-                              </span>
-                            )}
+                            {statusBadge}
                           </div>
                         </button>
                       );
