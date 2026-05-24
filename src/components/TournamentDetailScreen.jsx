@@ -9,7 +9,7 @@ import CreateTournamentModal from './CreateTournamentModal';
 import EnterResultModal from './EnterResultModal';
 import TournamentEditOptionsModal from './TournamentEditOptionsModal';
 import HandicapSetupModal from './HandicapSetupModal';
-import TeamFixtureModal from './TeamFixtureModal';
+import TeamFixtureScreen from './TeamFixtureScreen';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [tournament, setTournament] = useState(null);
@@ -29,8 +29,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
   const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [handicapMatch, setHandicapMatch] = useState(null);
-  const [teamFixture, setTeamFixture] = useState(null); // active fixture for TeamFixtureModal
-  const [isEditFixture, setIsEditFixture] = useState(false);
+  const [teamFixture, setTeamFixture] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -356,6 +355,27 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       : tournament.status === 'completed' ? 'bg-blue-100 text-blue-700'
       : 'bg-gray-100 text-gray-600';
 
+    // Fixture screen takes over the whole view
+    if (teamFixture) {
+      const tA = participantMap[teamFixture.participant_a?.participant_id] ??
+        participants.find((p) => p._id?.toString() === teamFixture.participant_a?.participant_id?.toString());
+      const tB = participantMap[teamFixture.participant_b?.participant_id] ??
+        participants.find((p) => p._id?.toString() === teamFixture.participant_b?.participant_id?.toString());
+      if (tA && tB) {
+        return (
+          <TeamFixtureScreen
+            fixture={teamFixture}
+            teamA={tA}
+            teamB={tB}
+            tournamentId={tournamentId}
+            passphrase={getCachedPassphrase(tournamentId)}
+            onBack={() => { setTeamFixture(null); loadTournamentData(); }}
+            onResultSaved={() => { setTeamFixture(null); loadTournamentData(); }}
+          />
+        );
+      }
+    }
+
     return (
       <div className='min-h-screen bg-gray-50 flex flex-col'>
         {/* Header */}
@@ -524,12 +544,8 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                           key={fixture._id}
                           onClick={() => {
                             if (done) {
-                              withPassphrase(() => {
-                                setIsEditFixture(true);
-                                setTeamFixture(fixture);
-                              });
+                              withPassphrase(() => setTeamFixture(fixture));
                             } else {
-                              setIsEditFixture(false);
                               setTeamFixture(fixture);
                             }
                           }}
@@ -580,24 +596,6 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           )}
         </div>
 
-        {/* Modals */}
-        {teamFixture && (() => {
-          const tA = participants.find((p) => p._id === teamFixture.participant_a?.participant_id?.toString() || p._id?.toString() === teamFixture.participant_a?.participant_id?.toString());
-          const tB = participants.find((p) => p._id === teamFixture.participant_b?.participant_id?.toString() || p._id?.toString() === teamFixture.participant_b?.participant_id?.toString());
-          if (!tA || !tB) return null;
-          return (
-            <TeamFixtureModal
-              fixture={teamFixture}
-              teamA={tA}
-              teamB={tB}
-              tournamentId={tournamentId}
-              isEdit={isEditFixture}
-              passphrase={getCachedPassphrase(tournamentId)}
-              onClose={() => { setTeamFixture(null); setIsEditFixture(false); }}
-              onResultSaved={() => { setTeamFixture(null); setIsEditFixture(false); loadTournamentData(); }}
-            />
-          );
-        })()}
 
         {showPassphraseModal && (
           <PassphraseModal
