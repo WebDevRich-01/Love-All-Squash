@@ -30,6 +30,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [handicapMatch, setHandicapMatch] = useState(null);
   const [teamFixture, setTeamFixture] = useState(null);
+  const [selectedDivision, setSelectedDivision] = useState(0);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -428,7 +429,35 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           </div>
         </div>
 
-        <div className='flex-1 px-4 lg:px-8 py-6 space-y-6'>
+        {/* Division tabs */}
+        {(() => {
+          const tabNames = tournament.status === 'draft'
+            ? draftDivisions.map((d) => d.name)
+            : Object.values(fixturesByGroup).map(({ group }) => group.name);
+          if (tabNames.length <= 1) return null;
+          return (
+            <div className='bg-white border-b shrink-0 px-4 lg:px-8 py-3'>
+              <div className='flex gap-2 sm:inline-flex'>
+                {tabNames.map((name, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedDivision(i)}
+                    className={`flex-1 sm:flex-none sm:px-10 py-3 rounded-xl text-base font-bold transition-all ${
+                      selectedDivision === i
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        <div className='flex-1 overflow-y-auto'>
+        <div className='max-w-4xl mx-auto px-4 lg:px-8 py-6 space-y-6'>
           {actionError && (
             <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm'>
               {actionError}
@@ -441,46 +470,44 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
               <div className='bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800'>
                 Tournament is in draft. Click <strong>Start Tournament</strong> to generate all fixtures.
               </div>
-              <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
-                {draftDivisions.map((div, divIdx) => (
-                  <div key={divIdx} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
-                    <div className='px-4 py-3 bg-gray-50 border-b flex items-center justify-between'>
-                      <h2 className='font-bold text-gray-800'>{div.name}</h2>
-                      <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
-                    </div>
-                    <div className='divide-y divide-gray-100'>
-                      {div.teams.map((team) => (
-                        <div key={team._id} className='px-4 py-3'>
-                          <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
-                          <div className='grid grid-cols-5 gap-2'>
-                            {[1, 2, 3, 4, 5].map((sn) => {
-                              const player = team.roster?.find((r) => r.string_number === sn);
-                              return (
-                                <div key={sn} className='text-center'>
-                                  <span className='block text-xs text-gray-400 mb-0.5'>S{sn}</span>
-                                  <span className='block text-xs font-medium text-gray-700 truncate'>
-                                    {player?.player_name || <span className='text-gray-300'>—</span>}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                      {div.teams.length === 0 && (
-                        <p className='px-4 py-3 text-sm text-gray-400'>No teams assigned</p>
-                      )}
-                    </div>
+              {draftDivisions.filter((_, i) => i === selectedDivision).map((div, divIdx) => (
+                <div key={divIdx} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                  <div className='px-4 py-3 bg-gray-50 border-b flex items-center justify-between'>
+                    <h2 className='font-bold text-gray-800'>{div.name}</h2>
+                    <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
                   </div>
-                ))}
-              </div>
+                  <div className='divide-y divide-gray-100'>
+                    {div.teams.map((team) => (
+                      <div key={team._id} className='px-4 py-3'>
+                        <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
+                        <div className='grid grid-cols-5 gap-2'>
+                          {[1, 2, 3, 4, 5].map((sn) => {
+                            const player = team.roster?.find((r) => r.string_number === sn);
+                            return (
+                              <div key={sn} className='text-center'>
+                                <span className='block text-xs text-gray-400 mb-0.5'>S{sn}</span>
+                                <span className='block text-xs font-medium text-gray-700 truncate'>
+                                  {player?.player_name || <span className='text-gray-300'>—</span>}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {div.teams.length === 0 && (
+                      <p className='px-4 py-3 text-sm text-gray-400'>No teams assigned</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
           {/* Division standings + fixtures (active/completed state) */}
           {Object.values(fixturesByGroup).length > 0 && (
-          <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
-          {Object.values(fixturesByGroup).map(({ group, fixtures }) => {
+          <div className='space-y-6'>
+          {Object.values(fixturesByGroup).filter((_, i) => i === selectedDivision).map(({ group, fixtures }) => {
             const standings = group.standings || [];
             const sortedFixtures = [...fixtures].sort((a, b) => {
               const aDate = a.scheduled_at ? new Date(a.scheduled_at) : null;
@@ -553,22 +580,22 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       const inProgress = !done && draftCount > 0;
                       const fixtureDate = formatFixtureDate(fixture.scheduled_at);
 
-                      let statusBadge;
+                      let statusPill;
                       if (done) {
-                        statusBadge = (
-                          <span className='text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
-                            Edit
+                        statusPill = (
+                          <span className='text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
+                            Complete
                           </span>
                         );
                       } else if (inProgress) {
-                        statusBadge = (
-                          <span className='text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
+                        statusPill = (
+                          <span className='text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
                             In Progress {draftCount}/5
                           </span>
                         );
                       } else {
-                        statusBadge = (
-                          <span className='text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium whitespace-nowrap'>
+                        statusPill = (
+                          <span className='text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
                             Not started
                           </span>
                         );
@@ -584,29 +611,35 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                               setTeamFixture(fixture);
                             }
                           }}
-                          className='w-full flex items-center justify-between px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-blue-50'
+                          className='w-full flex items-center gap-3 px-4 py-4 border-b last:border-0 text-left transition-colors hover:bg-blue-50 active:bg-blue-100'
                         >
+                          {/* Team names + score */}
                           <div className='flex-1 min-w-0'>
                             <div className='flex items-center gap-2 flex-wrap'>
-                              <span className='font-semibold text-sm text-gray-800'>
+                              <span className='font-bold text-base text-gray-900'>
                                 {fixture.participant_a?.name || '?'}
                               </span>
-                              <span className='text-gray-400 text-xs'>vs</span>
-                              <span className='font-semibold text-sm text-gray-800'>
+                              <span className='text-gray-400 text-sm'>vs</span>
+                              <span className='font-bold text-base text-gray-900'>
                                 {fixture.participant_b?.name || '?'}
                               </span>
                             </div>
                             {done && result && (
-                              <p className='text-xs text-gray-500 mt-0.5'>
+                              <p className='text-sm text-gray-500 mt-0.5'>
                                 {result.team_a_games_total} – {result.team_b_games_total} games
                               </p>
                             )}
                           </div>
-                          <div className='shrink-0 ml-3 flex items-center gap-2'>
+
+                          {/* Date + status pill + action button */}
+                          <div className='shrink-0 flex items-center gap-2'>
                             {fixtureDate && (
-                              <span className='text-xs text-gray-400 whitespace-nowrap'>{fixtureDate}</span>
+                              <span className='text-sm text-gray-400 whitespace-nowrap'>{fixtureDate}</span>
                             )}
-                            {statusBadge}
+                            <span className='hidden sm:inline'>{statusPill}</span>
+                            <span className={`text-sm font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap ${done ? 'bg-gray-100 text-gray-600' : 'bg-blue-600 text-white'}`}>
+                              {done ? 'Edit result' : 'Enter result'}
+                            </span>
                           </div>
                         </button>
                       );
@@ -618,6 +651,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           })}
           </div>
           )}
+        </div>
         </div>
 
 
