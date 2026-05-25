@@ -35,6 +35,11 @@
     user-select: none;
     /* Prevent touch highlighting */
     -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+
+  a {
+    cursor: pointer;
   }
 
   /* Improve touch targets for mobile */
