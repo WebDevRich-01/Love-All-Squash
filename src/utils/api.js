@@ -282,6 +282,22 @@ const api = {
     return response.json();
   },
 
+  addTournamentParticipant: async (tournamentId, data, passphrase) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/participants`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...data, passphrase }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
   updateTournamentParticipant: async (tournamentId, participantId, name, passphrase) => {
     const response = await fetchWithTimeout(
       `${API_URL}/api/tournaments/${tournamentId}/participants/${participantId}`,

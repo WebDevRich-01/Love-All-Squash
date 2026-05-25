@@ -32,6 +32,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [teamFixture, setTeamFixture] = useState(null);
   const [selectedDivision, setSelectedDivision] = useState(0);
   const [filterTeamId, setFilterTeamId] = useState(null);
+  const [expandedTeamsDivision, setExpandedTeamsDivision] = useState(null);
+  const [addPoolDraft, setAddPoolDraft] = useState(null); // null=hidden, {name,seed}=open
+  const [addPoolSaving, setAddPoolSaving] = useState(false);
+  const [addPoolError, setAddPoolError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -353,7 +357,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     const draftDivisions = Array.from({ length: divCount }, (_, i) => ({
       name: `Division ${String.fromCharCode(65 + i)}`,
       teams: participants
-        .filter((p) => (p.division_index ?? 0) === i)
+        .filter((p) => !p.is_pool && (p.division_index ?? 0) === i)
         .sort((a, b) => (a.seed || 999) - (b.seed || 999)),
     }));
 
@@ -430,28 +434,37 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           </div>
         </div>
 
-        {/* Division tabs */}
+        {/* Division tabs + Teams tab */}
         {(() => {
-          const tabNames = tournament.status === 'draft'
+          const divTabNames = tournament.status === 'draft'
             ? draftDivisions.map((d) => d.name)
             : Object.values(fixturesByGroup).map(({ group }) => group.name);
-          if (tabNames.length <= 1) return null;
+          const allTabs = [...divTabNames, 'Teams'];
           return (
             <div className='bg-white border-b shrink-0 px-4 lg:px-8 py-3'>
               <div className='flex gap-2 sm:inline-flex'>
-                {tabNames.map((name, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setSelectedDivision(i); setFilterTeamId(null); }}
-                    className={`flex-1 sm:flex-none sm:px-10 py-3 rounded-xl text-base font-bold transition-all ${
-                      selectedDivision === i
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
+                {allTabs.map((name, i) => {
+                  const isTeamsTab = name === 'Teams';
+                  const isSelected = isTeamsTab
+                    ? selectedDivision === 'teams'
+                    : selectedDivision === i;
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => {
+                        setFilterTeamId(null);
+                        setSelectedDivision(isTeamsTab ? 'teams' : i);
+                      }}
+                      className={`flex-1 sm:flex-none sm:px-10 py-3 rounded-xl text-base font-bold transition-all ${
+                        isSelected
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -466,7 +479,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           )}
 
           {/* ── Draft: show division/team/roster cards ── */}
-          {tournament.status === 'draft' && (
+          {tournament.status === 'draft' && selectedDivision !== 'teams' && (
             <div className='space-y-4'>
               <div className='bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800'>
                 Tournament is in draft. Click <strong>Start Tournament</strong> to generate all fixtures.
@@ -506,7 +519,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           )}
 
           {/* Division standings + fixtures (active/completed state) */}
-          {Object.values(fixturesByGroup).length > 0 && (
+          {Object.values(fixturesByGroup).length > 0 && selectedDivision !== 'teams' && (
           <div className='space-y-6'>
           {Object.values(fixturesByGroup).filter((_, i) => i === selectedDivision).map(({ group, fixtures }) => {
             const standings = group.standings || [];
@@ -677,6 +690,210 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           })}
           </div>
           )}
+
+          {/* ── Teams view ── */}
+          {selectedDivision === 'teams' && (() => {
+            const poolPlayers = participants.filter((p) => p.is_pool);
+            const poolGroups = [
+              { label: '1', seeds: [1] },
+              { label: '2', seeds: [2] },
+              { label: '3', seeds: [3] },
+              { label: '4/5', seeds: [4, 5] },
+            ].map((g) => ({
+              ...g,
+              players: poolPlayers.filter((p) => g.seeds.includes(p.seed)),
+            }));
+
+            return (
+            <div className='space-y-3'>
+              {draftDivisions.map((div, divIdx) => {
+                const isOpen = expandedTeamsDivision === divIdx;
+                return (
+                  <div key={divIdx} className='bg-white rounded-xl shadow-sm overflow-hidden'>
+                    {/* Accordion header */}
+                    <button
+                      onClick={() => setExpandedTeamsDivision(isOpen ? null : divIdx)}
+                      className='w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors focus:outline-none'
+                    >
+                      <span className='font-bold text-gray-900'>{div.name}</span>
+                      <div className='flex items-center gap-2 shrink-0'>
+                        <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          fill='none' stroke='currentColor' viewBox='0 0 24 24'
+                        >
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Expanded team list */}
+                    {isOpen && (
+                      <div className='border-t p-4'>
+                        {div.teams.length === 0 && (
+                          <p className='text-sm text-gray-400 italic'>No teams assigned</p>
+                        )}
+                        <div className='grid grid-cols-2 gap-3'>
+                          {div.teams.map((team) => {
+                            const roster = [1, 2, 3, 4, 5]
+                              .map((sn) => ({ sn, player: team.roster?.find((r) => r.string_number === sn) }))
+                              .filter(({ player }) => player);
+                            return (
+                              <div key={team._id} className='bg-gray-50 rounded-lg px-3 py-3'>
+                                <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
+                                {roster.length === 0 ? (
+                                  <p className='text-xs text-gray-400 italic'>No players added</p>
+                                ) : (
+                                  <div className='space-y-1.5'>
+                                    {roster.map(({ sn, player }) => (
+                                      <div key={sn} className='flex items-center gap-2'>
+                                        <span className='text-xs font-bold text-gray-400 w-5 shrink-0'>S{sn}</span>
+                                        <span className='text-sm text-gray-700 flex-1 min-w-0 truncate'>{player.player_name}</span>
+                                        {player.is_captain && (
+                                          <span className='text-xs font-medium text-blue-500 shrink-0'>C</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Pool players */}
+              <div className='bg-white rounded-xl shadow-sm overflow-hidden'>
+                <button
+                  onClick={() => setExpandedTeamsDivision(expandedTeamsDivision === 'pool' ? null : 'pool')}
+                  className='w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors focus:outline-none'
+                >
+                  <span className='font-bold text-gray-900'>Pool</span>
+                  <div className='flex items-center gap-2 shrink-0'>
+                    <span className='text-xs text-gray-400'>{poolPlayers.length} players</span>
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${expandedTeamsDivision === 'pool' ? 'rotate-180' : ''}`}
+                      fill='none' stroke='currentColor' viewBox='0 0 24 24'
+                    >
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+                    </svg>
+                  </div>
+                </button>
+                {expandedTeamsDivision === 'pool' && (
+                  <div className='border-t p-4 space-y-4'>
+                    {/* Player groups */}
+                    {poolPlayers.length === 0 && !addPoolDraft && (
+                      <p className='text-sm text-gray-400 italic'>No pool players added yet</p>
+                    )}
+                    {poolGroups.filter((g) => g.players.length > 0).length > 0 && (
+                      <div className='grid grid-cols-2 gap-3'>
+                        {poolGroups.filter((g) => g.players.length > 0).map((g) => (
+                          <div key={g.label} className='bg-gray-50 rounded-lg px-3 py-3'>
+                            <p className='font-semibold text-gray-800 text-sm mb-2'>String {g.label}</p>
+                            <div className='space-y-1.5'>
+                              {g.players.map((p) => (
+                                <div key={p._id} className='text-sm text-gray-700 truncate'>{p.name}</div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add player form */}
+                    {addPoolDraft ? (
+                      <div className='border border-gray-200 rounded-xl p-4 space-y-4'>
+                        <p className='text-sm font-semibold text-gray-700'>New pool player</p>
+
+                        <div>
+                          <label className='block text-xs text-gray-500 mb-1'>Name</label>
+                          <input
+                            type='text'
+                            value={addPoolDraft.name}
+                            onChange={(e) => setAddPoolDraft((d) => ({ ...d, name: e.target.value }))}
+                            placeholder='Player name'
+                            className='w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                          />
+                        </div>
+
+                        <div>
+                          <label className='block text-xs text-gray-500 mb-2'>String</label>
+                          <div className='flex gap-2'>
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => setAddPoolDraft((d) => ({ ...d, seed: s }))}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                                  addPoolDraft.seed === s
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {addPoolError && (
+                          <p className='text-xs text-red-600'>{addPoolError}</p>
+                        )}
+
+                        <div className='flex gap-2'>
+                          <button
+                            onClick={() => { setAddPoolDraft(null); setAddPoolError(null); }}
+                            className='flex-1 py-2 text-sm font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors'
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            disabled={!addPoolDraft.name.trim() || !addPoolDraft.seed || addPoolSaving}
+                            onClick={async () => {
+                              setAddPoolSaving(true);
+                              setAddPoolError(null);
+                              try {
+                                const passphrase = getCachedPassphrase(tournamentId);
+                                await api.addTournamentParticipant(
+                                  tournamentId,
+                                  {
+                                    name: addPoolDraft.name.trim(),
+                                    seed: addPoolDraft.seed,
+                                    is_pool: true,
+                                  },
+                                  passphrase
+                                );
+                                setAddPoolDraft(null);
+                                await loadTournamentData();
+                              } catch (err) {
+                                setAddPoolError(err.message || 'Failed to add player');
+                              } finally {
+                                setAddPoolSaving(false);
+                              }
+                            }}
+                            className='flex-1 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+                          >
+                            {addPoolSaving ? 'Saving…' : 'Add player'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => withPassphrase(() => setAddPoolDraft({ name: '', seed: null }))}
+                        className='w-full py-2.5 text-sm font-semibold border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-colors'
+                      >
+                        + Add pool player
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            );
+          })()}
         </div>
         </div>
 

@@ -160,6 +160,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         const divCount = tournament.config?.divisions?.count || 2;
         const byDiv = {};
         initialParticipants.forEach((p) => {
+          if (p.is_pool) return;
           const idx = p.division_index ?? 0;
           if (!byDiv[idx]) byDiv[idx] = [];
           byDiv[idx].push(p);
@@ -196,6 +197,9 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         },
         divisions,
         fixture_dates: tournament.config?.fixture_dates || {},
+        pool_players: (initialParticipants || [])
+          .filter((p) => p.is_pool)
+          .map((p) => ({ id: `pool-${p._id}`, name: p.name, seed: p.seed })),
       };
     }
     return {
@@ -215,6 +219,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       // Team round robin specific
       divisions: [emptyDivision('Division A'), emptyDivision('Division B')],
       fixture_dates: {},
+      pool_players: [],
     };
   });
 
@@ -223,6 +228,8 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [teamRrTab, setTeamRrTab] = useState('div-0');
+  const [poolInput, setPoolInput] = useState({ name: '', seed: null });
 
   // Drag and drop sensors
   // PointerSensor needs a distance constraint so a small tap doesn't cancel the drag.
@@ -319,6 +326,22 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
     });
   };
 
+  const addPoolPlayer = () => {
+    if (!poolInput.name.trim() || !poolInput.seed) return;
+    setFormData((prev) => ({
+      ...prev,
+      pool_players: [
+        ...prev.pool_players,
+        { id: `pool-${Date.now()}-${Math.random()}`, name: poolInput.name.trim(), seed: poolInput.seed },
+      ],
+    }));
+    setPoolInput({ name: '', seed: null });
+  };
+
+  const removePoolPlayer = (id) => {
+    setFormData((prev) => ({ ...prev, pool_players: prev.pool_players.filter((p) => p.id !== id) }));
+  };
+
   // Handle drag end for Monrad tournaments
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -398,15 +421,22 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       if (isTeamRR) {
         // Flatten divisions into a single participant list with seeds
         let seed = 1;
-        participants = formData.divisions.flatMap((div, divIdx) =>
-          div.teams.map((team) => ({
-            name: team.name,
-            seed: seed++,
-            color: team.color || 'border-blue-500',
-            roster: team.roster.filter((r) => r.player_name.trim()),
-            division_index: divIdx,
-          }))
-        );
+        participants = [
+          ...formData.divisions.flatMap((div, divIdx) =>
+            div.teams.map((team) => ({
+              name: team.name,
+              seed: seed++,
+              color: team.color || 'border-blue-500',
+              roster: team.roster.filter((r) => r.player_name.trim()),
+              division_index: divIdx,
+            }))
+          ),
+          ...formData.pool_players.map((p) => ({
+            name: p.name,
+            seed: p.seed,
+            is_pool: true,
+          })),
+        ];
         config = {
           match: {
             best_of: formData.matchSettings.best_of,
@@ -687,12 +717,38 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           {/* Right panel — participants / divisions */}
           <div className='flex-1 lg:overflow-y-auto p-6'>
 
-            {/* ── Team Round Robin: divisions side by side ── */}
+            {/* ── Team Round Robin: tabbed divisions + pool ── */}
             {formData.format === 'team_round_robin' && (
               <div className='space-y-4'>
-                <div className='flex items-center justify-between'>
-                  <h2 className='text-sm font-semibold text-gray-700'>Divisions &amp; Teams</h2>
-                  <div className='flex items-center gap-3'>
+
+                {/* Tab bar */}
+                <div className='flex items-center gap-2 flex-wrap'>
+                  {formData.divisions.map((div, i) => (
+                    <button
+                      key={i}
+                      type='button'
+                      onClick={() => setTeamRrTab(`div-${i}`)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        teamRrTab === `div-${i}`
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {div.name}
+                    </button>
+                  ))}
+                  <button
+                    type='button'
+                    onClick={() => setTeamRrTab('pool')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                      teamRrTab === 'pool'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    Pool {formData.pool_players.length > 0 && `(${formData.pool_players.length})`}
+                  </button>
+                  <div className='ml-auto flex items-center gap-2'>
                     {import.meta.env.DEV && (
                       <button
                         type='button'
@@ -702,98 +758,183 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                         Fill test data
                       </button>
                     )}
-                    <button
-                      type='button'
-                      onClick={() => setFormData((prev) => ({ ...prev, divisions: [...prev.divisions, emptyDivision(`Division ${String.fromCharCode(65 + prev.divisions.length)}`)] }))}
-                      className='text-sm text-blue-600 hover:text-blue-800 font-medium'
-                    >
-                      + Add Division
-                    </button>
+                    {teamRrTab !== 'pool' && (
+                      <button
+                        type='button'
+                        onClick={() => {
+                          const newIdx = formData.divisions.length;
+                          setFormData((prev) => ({ ...prev, divisions: [...prev.divisions, emptyDivision(`Division ${String.fromCharCode(65 + prev.divisions.length)}`)] }));
+                          setTeamRrTab(`div-${newIdx}`);
+                        }}
+                        className='text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap'
+                      >
+                        + Add Division
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
-                  {formData.divisions.map((div, divIdx) => (
-                    <div key={divIdx} className='bg-white rounded-xl border border-gray-200 flex flex-col'>
-                      {/* Division header */}
-                      <div className='flex items-center gap-2 px-4 py-3 border-b bg-gray-50 rounded-t-xl'>
-                        <input
-                          type='text'
-                          value={div.name}
-                          onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], name: e.target.value }; return { ...prev, divisions }; })}
-                          className='flex-1 font-bold text-gray-800 bg-transparent border-b border-transparent focus:border-blue-400 focus:outline-none'
-                        />
-                        {formData.divisions.length > 1 && (
-                          <button type='button' onClick={() => setFormData((prev) => ({ ...prev, divisions: prev.divisions.filter((_, i) => i !== divIdx) }))} className='text-xs text-red-400 hover:text-red-600'>
-                            Remove
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Team cards */}
-                      <div className='p-3 space-y-2 flex-1'>
-                        {div.teams.map((team, teamIdx) => (
-                          <div key={team.id} className='bg-gray-50 rounded-lg p-3 space-y-2'>
-                            <div className='flex items-center gap-2'>
-                              <input
-                                type='text'
-                                value={team.name}
-                                onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; const teams = [...divisions[divIdx].teams]; teams[teamIdx] = { ...teams[teamIdx], name: e.target.value }; divisions[divIdx] = { ...divisions[divIdx], teams }; return { ...prev, divisions }; })}
-                                placeholder='Team name'
-                                className='flex-1 font-medium border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
-                              />
-                              <button
-                                type='button'
-                                onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: divisions[divIdx].teams.filter((_, i) => i !== teamIdx) }; return { ...prev, divisions }; })}
-                                className='text-gray-300 hover:text-red-500 text-xl leading-none transition-colors'
-                              >
-                                ×
-                              </button>
-                            </div>
-                            {/* Roster: label + input per string */}
-                            <div className='grid grid-cols-5 gap-1.5'>
-                              {team.roster.map((row, strIdx) => (
-                                <div key={strIdx} className='flex flex-col gap-0.5'>
-                                  <span className='text-xs text-gray-400 text-center'>S{row.string_number}</span>
-                                  <input
-                                    type='text'
-                                    value={row.player_name}
-                                    onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; const teams = [...divisions[divIdx].teams]; const roster = [...teams[teamIdx].roster]; roster[strIdx] = { ...roster[strIdx], player_name: e.target.value }; teams[teamIdx] = { ...teams[teamIdx], roster }; divisions[divIdx] = { ...divisions[divIdx], teams }; return { ...prev, divisions }; })}
-                                    placeholder='Name'
-                                    className='w-full text-xs border border-gray-200 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 text-center'
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-
+                {/* Division tab content */}
+                {formData.divisions.map((div, divIdx) => teamRrTab === `div-${divIdx}` && (
+                  <div key={divIdx} className='bg-white rounded-xl border border-gray-200 flex flex-col'>
+                    {/* Division header */}
+                    <div className='flex items-center gap-2 px-4 py-3 border-b bg-gray-50 rounded-t-xl'>
+                      <input
+                        type='text'
+                        value={div.name}
+                        onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], name: e.target.value }; return { ...prev, divisions }; })}
+                        className='flex-1 font-bold text-gray-800 bg-transparent border-b border-transparent focus:border-blue-400 focus:outline-none'
+                      />
+                      {formData.divisions.length > 1 && (
                         <button
                           type='button'
-                          onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: [...divisions[divIdx].teams, emptyTeam()] }; return { ...prev, divisions }; })}
-                          className='w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-colors'
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, divisions: prev.divisions.filter((_, i) => i !== divIdx) }));
+                            setTeamRrTab('div-0');
+                          }}
+                          className='text-xs text-red-400 hover:text-red-600'
                         >
-                          + Add Team
+                          Remove
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
 
-                {/* ── Fixture Schedule ── */}
-                {(() => {
+                    {/* Team cards */}
+                    <div className='p-3 space-y-2 flex-1'>
+                      {div.teams.map((team, teamIdx) => (
+                        <div key={team.id} className='bg-gray-50 rounded-lg p-3 space-y-2'>
+                          <div className='flex items-center gap-2'>
+                            <input
+                              type='text'
+                              value={team.name}
+                              onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; const teams = [...divisions[divIdx].teams]; teams[teamIdx] = { ...teams[teamIdx], name: e.target.value }; divisions[divIdx] = { ...divisions[divIdx], teams }; return { ...prev, divisions }; })}
+                              placeholder='Team name'
+                              className='flex-1 font-medium border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
+                            />
+                            <button
+                              type='button'
+                              onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: divisions[divIdx].teams.filter((_, i) => i !== teamIdx) }; return { ...prev, divisions }; })}
+                              className='text-gray-300 hover:text-red-500 text-xl leading-none transition-colors'
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className='grid grid-cols-5 gap-1.5'>
+                            {team.roster.map((row, strIdx) => (
+                              <div key={strIdx} className='flex flex-col gap-0.5'>
+                                <span className='text-xs text-gray-400 text-center'>S{row.string_number}</span>
+                                <input
+                                  type='text'
+                                  value={row.player_name}
+                                  onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; const teams = [...divisions[divIdx].teams]; const roster = [...teams[teamIdx].roster]; roster[strIdx] = { ...roster[strIdx], player_name: e.target.value }; teams[teamIdx] = { ...teams[teamIdx], roster }; divisions[divIdx] = { ...divisions[divIdx], teams }; return { ...prev, divisions }; })}
+                                  placeholder='Name'
+                                  className='w-full text-xs border border-gray-200 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 text-center'
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type='button'
+                        onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: [...divisions[divIdx].teams, emptyTeam()] }; return { ...prev, divisions }; })}
+                        className='w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-colors'
+                      >
+                        + Add Team
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Pool tab content */}
+                {teamRrTab === 'pool' && (
+                  <div className='space-y-4'>
+                    {/* Add player form */}
+                    <div className='bg-white rounded-xl border border-gray-200 p-4 space-y-3'>
+                      <h3 className='text-sm font-semibold text-gray-700'>Add pool player</h3>
+                      <input
+                        type='text'
+                        value={poolInput.name}
+                        onChange={(e) => setPoolInput((p) => ({ ...p, name: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPoolPlayer(); } }}
+                        placeholder='Player name'
+                        className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      />
+                      <div>
+                        <label className='block text-xs text-gray-500 mb-1.5'>String</label>
+                        <div className='flex gap-2'>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              key={s}
+                              type='button'
+                              onClick={() => setPoolInput((p) => ({ ...p, seed: s }))}
+                              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                                poolInput.seed === s
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type='button'
+                        onClick={addPoolPlayer}
+                        disabled={!poolInput.name.trim() || !poolInput.seed}
+                        className='w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+                      >
+                        Add Player
+                      </button>
+                    </div>
+
+                    {/* Players grouped by string */}
+                    {formData.pool_players.length === 0 && (
+                      <p className='text-sm text-gray-400 text-center py-4'>No pool players added yet</p>
+                    )}
+                    {[
+                      { label: '1', seeds: [1] },
+                      { label: '2', seeds: [2] },
+                      { label: '3', seeds: [3] },
+                      { label: '4/5', seeds: [4, 5] },
+                    ].map((group) => {
+                      const players = formData.pool_players.filter((p) => group.seeds.includes(p.seed));
+                      if (players.length === 0) return null;
+                      return (
+                        <div key={group.label} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                          <div className='px-4 py-2.5 bg-gray-50 border-b'>
+                            <h3 className='text-sm font-semibold text-gray-700'>String {group.label}</h3>
+                          </div>
+                          <div className='divide-y divide-gray-100'>
+                            {players.map((p) => (
+                              <div key={p.id} className='flex items-center justify-between px-4 py-2.5'>
+                                <span className='text-sm text-gray-800'>{p.name}</span>
+                                <button
+                                  type='button'
+                                  onClick={() => removePoolPlayer(p.id)}
+                                  className='text-gray-300 hover:text-red-500 text-xl leading-none transition-colors'
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Fixture Schedule (division tabs only) */}
+                {teamRrTab !== 'pool' && (() => {
                   const slots = formData.divisions.flatMap((div, divIdx) => {
                     const teams = div.teams || [];
                     const result = [];
                     let n = 1;
                     for (let i = 0; i < teams.length; i++) {
                       for (let j = i + 1; j < teams.length; j++) {
-                        result.push({
-                          matchNumber: `D${divIdx + 1}F${n}`,
-                          divisionName: div.name,
-                          teamA: teams[i].name || `Team ${i + 1}`,
-                          teamB: teams[j].name || `Team ${j + 1}`,
-                        });
+                        result.push({ matchNumber: `D${divIdx + 1}F${n}`, divisionName: div.name, teamA: teams[i].name || `Team ${i + 1}`, teamB: teams[j].name || `Team ${j + 1}` });
                         n++;
                       }
                     }
@@ -813,10 +954,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                             <input
                               type='date'
                               value={formData.fixture_dates[slot.matchNumber] || ''}
-                              onChange={(e) => setFormData((prev) => ({
-                                ...prev,
-                                fixture_dates: { ...prev.fixture_dates, [slot.matchNumber]: e.target.value },
-                              }))}
+                              onChange={(e) => setFormData((prev) => ({ ...prev, fixture_dates: { ...prev.fixture_dates, [slot.matchNumber]: e.target.value } }))}
                               className='text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0'
                             />
                           </div>
