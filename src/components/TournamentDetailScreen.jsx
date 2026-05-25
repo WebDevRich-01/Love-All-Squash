@@ -31,6 +31,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [handicapMatch, setHandicapMatch] = useState(null);
   const [teamFixture, setTeamFixture] = useState(null);
   const [selectedDivision, setSelectedDivision] = useState(0);
+  const [filterTeamId, setFilterTeamId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -441,7 +442,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                 {tabNames.map((name, i) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedDivision(i)}
+                    onClick={() => { setSelectedDivision(i); setFilterTeamId(null); }}
                     className={`flex-1 sm:flex-none sm:px-10 py-3 rounded-xl text-base font-bold transition-all ${
                       selectedDivision === i
                         ? 'bg-blue-600 text-white shadow-sm'
@@ -543,9 +544,17 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       </thead>
                       <tbody>
                         {standings.map((row, i) => (
-                          <tr key={i} className={`border-b last:border-0 ${i === 0 ? 'bg-green-50' : ''}`}>
+                          <tr
+                            key={i}
+                            onClick={() => setFilterTeamId(filterTeamId === row.participant_id ? null : row.participant_id)}
+                            className={`border-b last:border-0 cursor-pointer transition-colors ${
+                              filterTeamId === row.participant_id ? 'bg-blue-50' : 'hover:bg-blue-50'
+                            }`}
+                          >
                             <td className='px-4 py-2 text-gray-400 font-medium'>{i + 1}</td>
-                            <td className='px-4 py-2 font-semibold text-gray-800'>{row.name}</td>
+                            <td className={`px-4 py-2 font-semibold ${filterTeamId === row.participant_id ? 'text-blue-700' : 'text-gray-800'}`}>
+                              {row.name}
+                            </td>
                             <td className='text-center px-2 py-2 text-gray-600'>{row.played}</td>
                             <td className='text-center px-2 py-2 text-gray-600'>{row.wins}</td>
                             <td className='text-center px-2 py-2 text-gray-600'>{row.losses}</td>
@@ -568,10 +577,17 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                 {/* Fixtures list */}
                 {sortedFixtures.length > 0 && (
                   <div className='border-t'>
-                    <div className='px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50'>
-                      Fixtures
+                    <div className='px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 flex items-center justify-between'>
+                      <span>Fixtures</span>
+                      {filterTeamId && (
+                        <span className='text-xs font-normal text-blue-600 normal-case tracking-normal'>
+                          Showing {standings.find((r) => r.participant_id === filterTeamId)?.name ?? 'team'} only
+                        </span>
+                      )}
                     </div>
-                    {sortedFixtures.map((fixture) => {
+                    {sortedFixtures
+                      .filter((f) => !filterTeamId || f.participant_a?.participant_id === filterTeamId || f.participant_b?.participant_id === filterTeamId)
+                      .map((fixture) => {
                       const tA = participantMap[fixture.participant_a?.participant_id];
                       const tB = participantMap[fixture.participant_b?.participant_id];
                       const done = fixture.status === 'completed' || fixture.status === 'walkover';
@@ -644,6 +660,16 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                         </button>
                       );
                     })}
+                    {filterTeamId && (
+                      <div className='px-4 py-3 border-t bg-gray-50 text-center'>
+                        <button
+                          onClick={() => setFilterTeamId(null)}
+                          className='text-sm font-medium text-blue-600 hover:text-blue-800'
+                        >
+                          Show all fixtures
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
