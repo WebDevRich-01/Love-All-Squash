@@ -395,6 +395,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             tournamentId={tournamentId}
             passphrase={getCachedPassphrase(tournamentId)}
             matchConfig={tournament.config?.match || {}}
+            poolPlayers={participants.filter((p) => p.is_pool)}
             onBack={() => { setTeamFixture(null); loadTournamentData(); }}
             onResultSaved={() => { setTeamFixture(null); loadTournamentData(); }}
             onScoreMatch={onScoreMatch}
@@ -675,15 +676,12 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                             )}
                           </div>
 
-                          {/* Date + status pill + action button */}
+                          {/* Date + status pill */}
                           <div className='shrink-0 flex items-center gap-2'>
                             {fixtureDate && (
                               <span className='text-sm text-gray-400 whitespace-nowrap'>{fixtureDate}</span>
                             )}
-                            <span className='hidden sm:inline'>{statusPill}</span>
-                            <span className={`text-sm font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap ${done ? 'bg-gray-100 text-gray-600' : 'bg-blue-600 text-white'}`}>
-                              {done ? 'Edit result' : 'Enter result'}
-                            </span>
+                            {statusPill}
                           </div>
                         </button>
                       );

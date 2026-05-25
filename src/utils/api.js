@@ -378,6 +378,22 @@ const api = {
     return response.json();
   },
 
+  saveTeamLineup: async (tournamentId, matchId, side, lineup) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/lineup`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ side, lineup }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
   editTeamFixtureResult: async (tournamentId, matchId, result, passphrase) => {
     const response = await fetchWithTimeout(
       `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/result`,

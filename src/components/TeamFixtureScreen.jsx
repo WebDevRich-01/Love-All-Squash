@@ -9,11 +9,15 @@ function buildInitialStrings(fixture, teamA, teamB) {
     fixture.status === 'completed'
       ? fixture.result?.string_results
       : fixture.draft_string_results;
+  const lineupA = fixture.team_a_lineup || [];
+  const lineupB = fixture.team_b_lineup || [];
 
   return Array.from({ length: STRING_COUNT }, (_, i) => {
     const sn = i + 1;
-    const aPlayer = teamA?.roster?.find((r) => r.string_number === sn)?.player_name || '';
-    const bPlayer = teamB?.roster?.find((r) => r.string_number === sn)?.player_name || '';
+    const rosterAPlayer = teamA?.roster?.find((r) => r.string_number === sn)?.player_name || '';
+    const rosterBPlayer = teamB?.roster?.find((r) => r.string_number === sn)?.player_name || '';
+    const aPlayer = lineupA.find((l) => l.string_number === sn)?.player_name || rosterAPlayer;
+    const bPlayer = lineupB.find((l) => l.string_number === sn)?.player_name || rosterBPlayer;
     const saved = source?.find((s) => s.string_number === sn);
 
     if (saved) {
@@ -67,6 +71,7 @@ export default function TeamFixtureScreen({
   onResultSaved,
   onScoreMatch,
   matchConfig,
+  poolPlayers,
 }) {
   const isEdit = fixture.status === 'completed' || fixture.status === 'walkover';
 
@@ -76,6 +81,13 @@ export default function TeamFixtureScreen({
   const [savingString, setSavingString] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Team lineup confirmation
+  const [teamAConfirmed, setTeamAConfirmed] = useState(fixture.team_a_confirmed || false);
+  const [teamBConfirmed, setTeamBConfirmed] = useState(fixture.team_b_confirmed || false);
+  const [confirmingTeam, setConfirmingTeam] = useState(null); // null | 'a' | 'b'
+  const [lineupDraft, setLineupDraft] = useState([]); // 5 player name strings
+  const [savingLineup, setSavingLineup] = useState(false);
 
   const totals = useMemo(() => {
     let a = 0, b = 0;
@@ -104,6 +116,38 @@ export default function TeamFixtureScreen({
     setExpandedIdx(idx);
     setDraft({ team_a_player: s.team_a_player, team_b_player: s.team_b_player, games });
     setError(null);
+  };
+
+  const openTeamEditor = (side) => {
+    const names = strings.map((s) =>
+      side === 'a' ? (s.team_a_player || '') : (s.team_b_player || '')
+    );
+    setLineupDraft(names);
+    setConfirmingTeam(side);
+    setExpandedIdx(null);
+    setDraft(null);
+    setError(null);
+  };
+
+  const handleConfirmLineup = async () => {
+    setSavingLineup(true);
+    setError(null);
+    const lineup = lineupDraft.map((name, i) => ({ string_number: i + 1, player_name: name }));
+    try {
+      await api.saveTeamLineup(tournamentId, fixture._id, confirmingTeam, lineup);
+      const playerKey = confirmingTeam === 'a' ? 'team_a_player' : 'team_b_player';
+      setStrings((prev) =>
+        prev.map((s, i) => ({ ...s, [playerKey]: lineupDraft[i] }))
+      );
+      if (confirmingTeam === 'a') setTeamAConfirmed(true);
+      else setTeamBConfirmed(true);
+      setConfirmingTeam(null);
+      setLineupDraft([]);
+    } catch (err) {
+      setError(err.message || 'Failed to save lineup');
+    } finally {
+      setSavingLineup(false);
+    }
   };
 
   const addGame = () => setDraft((d) => ({ ...d, games: [...d.games, { a: '', b: '' }] }));
@@ -218,15 +262,44 @@ export default function TeamFixtureScreen({
             </svg>
           </button>
           <div className='flex-1 min-w-0'>
-            <p className='text-xs text-gray-500 uppercase tracking-wide mb-0.5'>
+            <p className='text-xs text-gray-500 uppercase tracking-wide mb-1'>
               {isEdit ? 'Edit Fixture' : 'Fixture'}
             </p>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 mb-2'>
               <span className='font-bold text-base text-gray-900 truncate flex-1'>{teamA?.name}</span>
               <span className='text-gray-400 font-normal shrink-0 text-sm'>vs</span>
               <span className='font-bold text-base text-gray-900 truncate flex-1 text-right'>
                 {teamB?.name}
               </span>
+            </div>
+            {/* Team confirmation buttons */}
+            <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-1.5 flex-1'>
+                {teamAConfirmed && (
+                  <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
+                  </svg>
+                )}
+                <button
+                  onClick={() => openTeamEditor('a')}
+                  className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
+                >
+                  {teamAConfirmed ? 'Edit' : 'Confirm team'}
+                </button>
+              </div>
+              <div className='flex items-center gap-1.5 flex-1 justify-end'>
+                <button
+                  onClick={() => openTeamEditor('b')}
+                  className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
+                >
+                  {teamBConfirmed ? 'Edit' : 'Confirm team'}
+                </button>
+                {teamBConfirmed && (
+                  <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
+                  </svg>
+                )}
+              </div>
             </div>
           </div>
           <div className='shrink-0 text-sm font-medium text-gray-500'>
@@ -235,7 +308,76 @@ export default function TeamFixtureScreen({
         </div>
       </div>
 
+      {/* Team lineup editor */}
+      {confirmingTeam && (
+        <div className='flex-1 px-4 lg:px-8 py-6 max-w-2xl mx-auto w-full space-y-4'>
+          <h3 className='font-semibold text-gray-800 text-sm'>
+            {confirmingTeam === 'a' ? teamA?.name : teamB?.name} — Confirm Lineup
+          </h3>
+          {Array.from({ length: STRING_COUNT }, (_, i) => {
+            const sn = i + 1;
+            const seedsForString = sn <= 3 ? [sn] : [4, 5];
+            const relevantPool = (poolPlayers || []).filter((p) =>
+              seedsForString.includes(p.seed)
+            );
+            return (
+              <div key={sn} className='bg-white rounded-xl shadow-sm px-4 py-3 space-y-2'>
+                <div className='flex items-center gap-3'>
+                  <span className='text-xs font-bold text-gray-400 shrink-0 w-6'>S{sn}</span>
+                  <input
+                    type='text'
+                    value={lineupDraft[i] || ''}
+                    onChange={(e) => {
+                      const next = [...lineupDraft];
+                      next[i] = e.target.value;
+                      setLineupDraft(next);
+                    }}
+                    placeholder={`String ${sn} player`}
+                    className='flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                  />
+                </div>
+                {relevantPool.length > 0 && (
+                  <div className='flex flex-wrap gap-2 pl-9'>
+                    <span className='text-xs text-gray-400 self-center'>Pool:</span>
+                    {relevantPool.map((p) => (
+                      <button
+                        key={p._id}
+                        onClick={() => {
+                          const next = [...lineupDraft];
+                          next[i] = p.name;
+                          setLineupDraft(next);
+                        }}
+                        className='text-xs px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition-colors'
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {error && <p className='text-sm text-red-600 text-center'>{error}</p>}
+          <div className='flex gap-3 pt-1'>
+            <button
+              onClick={() => { setConfirmingTeam(null); setLineupDraft([]); setError(null); }}
+              className='flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmLineup}
+              disabled={savingLineup}
+              className='flex-1 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+            >
+              {savingLineup ? 'Saving…' : 'Confirm Team'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* String list */}
+      {!confirmingTeam && (
       <div className='flex-1 px-4 lg:px-8 py-6 space-y-3 max-w-2xl mx-auto w-full'>
         {strings.map((row, idx) => {
           const isOpen = expandedIdx === idx;
@@ -503,6 +645,7 @@ export default function TeamFixtureScreen({
           </p>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <div className='bg-white border-t px-4 lg:px-8 py-4 shrink-0'>
@@ -566,4 +709,5 @@ TeamFixtureScreen.propTypes = {
   onResultSaved: PropTypes.func.isRequired,
   onScoreMatch: PropTypes.func.isRequired,
   matchConfig: PropTypes.object,
+  poolPlayers: PropTypes.array,
 };
