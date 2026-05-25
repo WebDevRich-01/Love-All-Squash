@@ -329,6 +329,12 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   if (tournament.format === 'team_round_robin') {
     const participantMap = Object.fromEntries(participants.map((p) => [p._id, p]));
 
+    const formatFixtureDate = (iso) => {
+      if (!iso) return null;
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    };
+
     // Group fixtures by division group
     const fixturesByGroup = groups.reduce((acc, g) => {
       acc[g._id] = { group: g, fixtures: [] };
@@ -476,9 +482,14 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
           {Object.values(fixturesByGroup).map(({ group, fixtures }) => {
             const standings = group.standings || [];
-            const sortedFixtures = [...fixtures].sort((a, b) =>
-              (a.match_number || '').localeCompare(b.match_number || '')
-            );
+            const sortedFixtures = [...fixtures].sort((a, b) => {
+              const aDate = a.scheduled_at ? new Date(a.scheduled_at) : null;
+              const bDate = b.scheduled_at ? new Date(b.scheduled_at) : null;
+              if (aDate && bDate) return aDate - bDate;
+              if (aDate) return -1;
+              if (bDate) return 1;
+              return (a.match_number || '').localeCompare(b.match_number || '');
+            });
 
             return (
               <div key={group._id} className='bg-white rounded-xl shadow-sm overflow-hidden'>
@@ -540,6 +551,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       const result = fixture.result;
                       const draftCount = fixture.draft_string_results?.length ?? 0;
                       const inProgress = !done && draftCount > 0;
+                      const fixtureDate = formatFixtureDate(fixture.scheduled_at);
 
                       let statusBadge;
                       if (done) {
@@ -572,7 +584,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                               setTeamFixture(fixture);
                             }
                           }}
-                          className='w-full flex items-center justify-between px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-blue-50 cursor-pointer'
+                          className='w-full flex items-center justify-between px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-blue-50'
                         >
                           <div className='flex-1 min-w-0'>
                             <div className='flex items-center gap-2 flex-wrap'>
@@ -590,7 +602,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                               </p>
                             )}
                           </div>
-                          <div className='shrink-0 ml-3'>
+                          <div className='shrink-0 ml-3 flex items-center gap-2'>
+                            {fixtureDate && (
+                              <span className='text-xs text-gray-400 whitespace-nowrap'>{fixtureDate}</span>
+                            )}
                             {statusBadge}
                           </div>
                         </button>

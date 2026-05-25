@@ -195,6 +195,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           is_handicap: tournament.config?.match?.is_handicap || false,
         },
         divisions,
+        fixture_dates: tournament.config?.fixture_dates || {},
       };
     }
     return {
@@ -213,6 +214,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       },
       // Team round robin specific
       divisions: [emptyDivision('Division A'), emptyDivision('Division B')],
+      fixture_dates: {},
     };
   });
 
@@ -412,6 +414,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
             clear_points: formData.matchSettings.clear_points,
           },
           divisions: { count: formData.divisions.length },
+          ...(Object.keys(formData.fixture_dates).length > 0 && { fixture_dates: formData.fixture_dates }),
         };
       } else {
         participants = formData.participants.map(({ id, ...p }) => p);
@@ -776,6 +779,53 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                     </div>
                   ))}
                 </div>
+
+                {/* ── Fixture Schedule ── */}
+                {(() => {
+                  const slots = formData.divisions.flatMap((div, divIdx) => {
+                    const teams = div.teams || [];
+                    const result = [];
+                    let n = 1;
+                    for (let i = 0; i < teams.length; i++) {
+                      for (let j = i + 1; j < teams.length; j++) {
+                        result.push({
+                          matchNumber: `D${divIdx + 1}F${n}`,
+                          divisionName: div.name,
+                          teamA: teams[i].name || `Team ${i + 1}`,
+                          teamB: teams[j].name || `Team ${j + 1}`,
+                        });
+                        n++;
+                      }
+                    }
+                    return result;
+                  });
+                  if (slots.length === 0) return null;
+                  return (
+                    <div className='border-t pt-4'>
+                      <h2 className='text-sm font-semibold text-gray-700 mb-3'>Fixture Schedule <span className='font-normal text-gray-400'>(optional)</span></h2>
+                      <div className='space-y-2'>
+                        {slots.map((slot) => (
+                          <div key={slot.matchNumber} className='flex items-center gap-3 py-1.5'>
+                            <div className='flex-1 min-w-0'>
+                              <span className='text-xs text-gray-400 mr-2'>{slot.divisionName}</span>
+                              <span className='text-sm text-gray-700'>{slot.teamA} <span className='text-gray-400'>vs</span> {slot.teamB}</span>
+                            </div>
+                            <input
+                              type='date'
+                              value={formData.fixture_dates[slot.matchNumber] || ''}
+                              onChange={(e) => setFormData((prev) => ({
+                                ...prev,
+                                fixture_dates: { ...prev.fixture_dates, [slot.matchNumber]: e.target.value },
+                              }))}
+                              className='text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0'
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               </div>
             )}
 
