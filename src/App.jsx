@@ -84,7 +84,52 @@ function App() {
 
     setSubmitError(null);
 
-    // If this was a tournament match, submit the result
+    // ── Team Round Robin string — save draft result and return to fixture ──
+    if (tournamentMatchContext?.isTeamRRString) {
+      const { tournamentId, fixtureId, stringNumber, currentStrings } = tournamentMatchContext;
+      const gameScores = gameState.gameScores;
+      const teamAGames = gameScores.filter((s) => s.player1 > s.player2).length;
+      const teamBGames = gameScores.filter((s) => s.player2 > s.player1).length;
+
+      const scoredString = {
+        string_number: stringNumber,
+        team_a_games: teamAGames,
+        team_b_games: teamBGames,
+        team_a_player: gameState.player1.name || undefined,
+        team_b_player: gameState.player2.name || undefined,
+        game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
+      };
+
+      // Merge with already-persisted strings, replacing this string if it existed
+      const existingStrings = (currentStrings || [])
+        .filter((s) => s.persisted && s.string_number !== stringNumber)
+        .map((s) => ({
+          string_number: s.string_number,
+          team_a_games: s.team_a_games,
+          team_b_games: s.team_b_games,
+          team_a_player: s.team_a_player || undefined,
+          team_b_player: s.team_b_player || undefined,
+          game_scores: (s.games || []).map((g) => ({ team_a: parseInt(g.a, 10), team_b: parseInt(g.b, 10) })),
+        }));
+
+      try {
+        await api.saveDraftFixtureStrings(tournamentId, fixtureId, [...existingStrings, scoredString]);
+      } catch (error) {
+        if (import.meta.env.DEV) console.error('Error saving string result:', error);
+        isSubmitting.current = false;
+        setSubmitError('Failed to save the string result. Please check your connection and try again.');
+        return;
+      }
+
+      isSubmitting.current = false;
+      useGameStore.getState().resetGame();
+      setTournamentMatchContext(null);
+      setHasActiveMatch(false);
+      navigate(`/tournaments/${tournamentId}`, { state: { reopenFixtureId: fixtureId } });
+      return;
+    }
+
+    // ── Regular tournament match — submit result ──
     if (tournamentMatchContext) {
       const player1Wins = gameState.gameScores.filter(
         (s) => s.player1 > s.player2
@@ -157,9 +202,14 @@ function App() {
 
   const handleSkipAndExit = () => {
     setSubmitError(null);
+    const ctx = useGameStore.getState().tournamentMatchContext;
     setTournamentMatchContext(null);
     setHasActiveMatch(false);
-    navigate('/tournaments');
+    if (ctx?.isTeamRRString) {
+      navigate(`/tournaments/${ctx.tournamentId}`, { state: { reopenFixtureId: ctx.fixtureId } });
+    } else {
+      navigate('/tournaments');
+    }
   };
 
   const handleBackToHome = () => {

@@ -65,6 +65,8 @@ export default function TeamFixtureScreen({
   passphrase,
   onBack,
   onResultSaved,
+  onScoreMatch,
+  matchConfig,
 }) {
   const isEdit = fixture.status === 'completed' || fixture.status === 'walkover';
 
@@ -309,6 +311,18 @@ export default function TeamFixtureScreen({
                   ) : (
                     <div className='flex gap-2 pl-9'>
                       <button
+                        onClick={() =>
+                          onScoreMatch({
+                            isTeamRRString: true,
+                            tournamentId,
+                            fixtureId: fixture._id,
+                            stringNumber: row.string_number,
+                            player1Name: row.team_a_player || teamA?.name,
+                            player2Name: row.team_b_player || teamB?.name,
+                            currentStrings: strings,
+                            matchConfig: matchConfig || {},
+                          })
+                        }
                         className='flex-1 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
                       >
                         Score match
@@ -550,4 +564,6 @@ TeamFixtureScreen.propTypes = {
   passphrase: PropTypes.string,
   onBack: PropTypes.func.isRequired,
   onResultSaved: PropTypes.func.isRequired,
+  onScoreMatch: PropTypes.func.isRequired,
+  matchConfig: PropTypes.object,
 };

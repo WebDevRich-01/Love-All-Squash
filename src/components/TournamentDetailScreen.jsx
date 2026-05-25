@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../utils/api';
 import TournamentMatchCard from './TournamentMatchCard';
 import TournamentStandings from './TournamentStandings';
@@ -12,6 +13,8 @@ import HandicapSetupModal from './HandicapSetupModal';
 import TeamFixtureScreen from './TeamFixtureScreen';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
+  const location = useLocation();
+  const reopenProcessedRef = useRef(false);
   const [tournament, setTournament] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [matches, setMatches] = useState([]);
@@ -68,6 +71,16 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     }, 30_000);
     return () => clearInterval(interval);
   }, [tournament?.status, tournamentId]);
+
+  // Auto-reopen a fixture after returning from live scoring
+  useEffect(() => {
+    const fixtureId = location.state?.reopenFixtureId;
+    if (!fixtureId || loading || matches.length === 0 || reopenProcessedRef.current) return;
+    reopenProcessedRef.current = true;
+    const fixture = matches.find((m) => m._id?.toString() === fixtureId?.toString());
+    if (fixture) setTeamFixture(fixture);
+    window.history.replaceState({}, '');
+  }, [loading, matches]);
 
   const loadTournamentData = async () => {
     try {
@@ -381,8 +394,10 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             teamB={tB}
             tournamentId={tournamentId}
             passphrase={getCachedPassphrase(tournamentId)}
+            matchConfig={tournament.config?.match || {}}
             onBack={() => { setTeamFixture(null); loadTournamentData(); }}
             onResultSaved={() => { setTeamFixture(null); loadTournamentData(); }}
+            onScoreMatch={onScoreMatch}
           />
         );
       }
