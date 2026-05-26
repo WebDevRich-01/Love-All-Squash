@@ -72,6 +72,8 @@ export default function TeamFixtureScreen({
   onScoreMatch,
   matchConfig,
   poolPlayers,
+  racketballPlayers,
+  beginnerPlayers,
 }) {
   const isEdit = fixture.status === 'completed' || fixture.status === 'walkover';
 
@@ -87,7 +89,21 @@ export default function TeamFixtureScreen({
   const [teamBConfirmed, setTeamBConfirmed] = useState(fixture.team_b_confirmed || false);
   const [confirmingTeam, setConfirmingTeam] = useState(null); // null | 'a' | 'b'
   const [lineupDraft, setLineupDraft] = useState([]); // 5 player name strings
+  const [extraDraft, setExtraDraft] = useState({ racketball: null, beginner: null }); // null=not added
   const [savingLineup, setSavingLineup] = useState(false);
+
+  // Tracked locally so fixture view updates without a refetch
+  const [extraPlayers, setExtraPlayers] = useState({
+    racketball: { a: fixture.team_a_racketball_player || null, b: fixture.team_b_racketball_player || null },
+    beginner:   { a: fixture.team_a_beginner_player   || null, b: fixture.team_b_beginner_player   || null },
+  });
+  const [extraResults, setExtraResults] = useState({
+    racketball: fixture.racketball_result || null,
+    beginner:   fixture.beginner_result   || null,
+  });
+  const [extraResultEditing, setExtraResultEditing] = useState(null); // null | 'racketball' | 'beginner'
+  const [extraResultDraft, setExtraResultDraft] = useState([]);
+  const [savingExtraResult, setSavingExtraResult] = useState(false);
 
   const totals = useMemo(() => {
     let a = 0, b = 0;
@@ -102,8 +118,11 @@ export default function TeamFixtureScreen({
         b += s.team_b_games || 0;
       }
     });
+    for (const r of Object.values(extraResults)) {
+      if (r) { a += r.team_a_games || 0; b += r.team_b_games || 0; }
+    }
     return { a, b };
-  }, [strings]);
+  }, [strings, extraResults]);
 
   const winner = totals.a > totals.b ? 'a' : totals.b > totals.a ? 'b' : null;
   const persistedStrings = strings.filter((s) => s.persisted);
@@ -122,7 +141,10 @@ export default function TeamFixtureScreen({
     const names = strings.map((s) =>
       side === 'a' ? (s.team_a_player || '') : (s.team_b_player || '')
     );
+    const rb = side === 'a' ? extraPlayers.racketball.a : extraPlayers.racketball.b;
+    const beg = side === 'a' ? extraPlayers.beginner.a : extraPlayers.beginner.b;
     setLineupDraft(names);
+    setExtraDraft({ racketball: rb ?? null, beginner: beg ?? null });
     setConfirmingTeam(side);
     setExpandedIdx(null);
     setDraft(null);
@@ -133,20 +155,80 @@ export default function TeamFixtureScreen({
     setSavingLineup(true);
     setError(null);
     const lineup = lineupDraft.map((name, i) => ({ string_number: i + 1, player_name: name }));
+    const extraPayload = {};
+    if (extraDraft.racketball !== undefined) extraPayload.racketball_player = extraDraft.racketball || null;
+    if (extraDraft.beginner !== undefined) extraPayload.beginner_player = extraDraft.beginner || null;
+    // Always send both so backend can apply auto-TBC / clear-TBC logic
+    extraPayload.racketball_player = extraDraft.racketball || null;
+    extraPayload.beginner_player = extraDraft.beginner || null;
     try {
-      await api.saveTeamLineup(tournamentId, fixture._id, confirmingTeam, lineup);
+      await api.saveTeamLineup(tournamentId, fixture._id, confirmingTeam, lineup, extraPayload);
       const playerKey = confirmingTeam === 'a' ? 'team_a_player' : 'team_b_player';
-      setStrings((prev) =>
-        prev.map((s, i) => ({ ...s, [playerKey]: lineupDraft[i] }))
-      );
+      setStrings((prev) => prev.map((s, i) => ({ ...s, [playerKey]: lineupDraft[i] })));
       if (confirmingTeam === 'a') setTeamAConfirmed(true);
       else setTeamBConfirmed(true);
+      // Apply auto-TBC logic locally to keep fixture view in sync
+      const side = confirmingTeam;
+      const other = side === 'a' ? 'b' : 'a';
+      setExtraPlayers((prev) => {
+        const next = {
+          racketball: { ...prev.racketball },
+          beginner:   { ...prev.beginner },
+        };
+        for (const type of ['racketball', 'beginner']) {
+          const val = extraDraft[type] || null;
+          next[type][side] = val;
+          if (val && !prev[type][other]) next[type][other] = 'TBC';
+          if (!val && prev[type][other] === 'TBC') next[type][other] = null;
+        }
+        return next;
+      });
       setConfirmingTeam(null);
       setLineupDraft([]);
+      setExtraDraft({ racketball: null, beginner: null });
     } catch (err) {
       setError(err.message || 'Failed to save lineup');
     } finally {
       setSavingLineup(false);
+    }
+  };
+
+  const openExtraEditor = (type) => {
+    const existing = extraResults[type];
+    const games = existing?.game_scores?.length
+      ? existing.game_scores.map((g) => ({ a: String(g.team_a), b: String(g.team_b) }))
+      : [{ a: '', b: '' }];
+    setExtraResultDraft(games);
+    setExtraResultEditing(type);
+    setError(null);
+  };
+
+  const saveExtraResult = async (type) => {
+    const filledGames = extraResultDraft.filter(({ a, b }) => a !== '' && b !== '');
+    if (filledGames.length === 0) return;
+    setSavingExtraResult(true);
+    setError(null);
+    const { a: teamAGames, b: teamBGames } = computeFromGames(filledGames);
+    try {
+      await api.saveExtraMatchResult(tournamentId, fixture._id, type, {
+        team_a_games: teamAGames,
+        team_b_games: teamBGames,
+        game_scores: filledGames.map((g) => ({ team_a: parseInt(g.a, 10), team_b: parseInt(g.b, 10) })),
+      });
+      setExtraResults((prev) => ({
+        ...prev,
+        [type]: {
+          team_a_games: teamAGames,
+          team_b_games: teamBGames,
+          game_scores: filledGames.map((g) => ({ team_a: parseInt(g.a, 10), team_b: parseInt(g.b, 10) })),
+        },
+      }));
+      setExtraResultEditing(null);
+      setExtraResultDraft([]);
+    } catch (err) {
+      setError(err.message || 'Failed to save result');
+    } finally {
+      setSavingExtraResult(false);
     }
   };
 
@@ -357,10 +439,74 @@ export default function TeamFixtureScreen({
               </div>
             );
           })}
+          {/* Extra player rows: racketball and beginner */}
+          {[
+            { type: 'racketball', label: 'Racketball', suggestions: racketballPlayers || [] },
+            { type: 'beginner',   label: 'Beginner',   suggestions: beginnerPlayers   || [] },
+          ].map(({ type, label, suggestions }) => {
+            const val = extraDraft[type];
+            if (val === null) return null;
+            return (
+              <div key={type} className='bg-white rounded-xl shadow-sm px-4 py-3 space-y-2'>
+                <div className='flex items-center gap-3'>
+                  <span className='text-xs font-bold text-gray-400 shrink-0 w-16'>{label}</span>
+                  <input
+                    type='text'
+                    value={val}
+                    onChange={(e) => setExtraDraft((d) => ({ ...d, [type]: e.target.value }))}
+                    placeholder='Player name'
+                    className='flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                  />
+                  <button
+                    onClick={() => setExtraDraft((d) => ({ ...d, [type]: null }))}
+                    className='text-gray-300 hover:text-red-400 transition-colors shrink-0'
+                  >
+                    <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                    </svg>
+                  </button>
+                </div>
+                {suggestions.length > 0 && (
+                  <div className='flex flex-wrap gap-2 pl-16'>
+                    {suggestions.map((p) => (
+                      <button
+                        key={p._id}
+                        onClick={() => setExtraDraft((d) => ({ ...d, [type]: p.name }))}
+                        className='text-xs px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition-colors'
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add extra player buttons */}
+          <div className='flex gap-2'>
+            {extraDraft.racketball === null && (
+              <button
+                onClick={() => setExtraDraft((d) => ({ ...d, racketball: '' }))}
+                className='flex-1 py-2 text-xs font-medium border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-purple-400 hover:text-purple-600 transition-colors'
+              >
+                + Add racketball
+              </button>
+            )}
+            {extraDraft.beginner === null && (
+              <button
+                onClick={() => setExtraDraft((d) => ({ ...d, beginner: '' }))}
+                className='flex-1 py-2 text-xs font-medium border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-orange-400 hover:text-orange-600 transition-colors'
+              >
+                + Add beginner
+              </button>
+            )}
+          </div>
+
           {error && <p className='text-sm text-red-600 text-center'>{error}</p>}
           <div className='flex gap-3 pt-1'>
             <button
-              onClick={() => { setConfirmingTeam(null); setLineupDraft([]); setError(null); }}
+              onClick={() => { setConfirmingTeam(null); setLineupDraft([]); setExtraDraft({ racketball: null, beginner: null }); setError(null); }}
               className='flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm'
             >
               Cancel
@@ -633,17 +779,196 @@ export default function TeamFixtureScreen({
           );
         })}
 
-        {!allPersisted && persistedStrings.length > 0 && (
-          <p className='text-center text-xs text-gray-400 pt-1'>
-            {STRING_COUNT - persistedStrings.length} string
-            {STRING_COUNT - persistedStrings.length !== 1 ? 's' : ''} still to enter
-          </p>
-        )}
-        {persistedStrings.length === 0 && (
-          <p className='text-center text-xs text-gray-400 pt-1'>
-            Tap a string above to score or enter a result
-          </p>
-        )}
+        {/* Racketball and beginner match rows */}
+        {[
+          { type: 'racketball', label: 'Racketball', abbr: 'RB', canScore: false },
+          { type: 'beginner',   label: 'Beginner',   abbr: 'BG', canScore: true  },
+        ].map(({ type, label, abbr, canScore }) => {
+          const playerA = extraPlayers[type].a;
+          const playerB = extraPlayers[type].b;
+          if (!playerA && !playerB) return null;
+          const bothReady = playerA && playerB && playerA !== 'TBC' && playerB !== 'TBC';
+          const result = extraResults[type];
+          const isEditing = extraResultEditing === type;
+          const gameScoreStr = result?.game_scores?.length
+            ? result.game_scores.map((g) => `${g.team_a}–${g.team_b}`).join(', ')
+            : null;
+
+          return (
+            <div
+              key={type}
+              className={`bg-white rounded-xl shadow-sm overflow-hidden ${isEditing ? 'ring-2 ring-blue-300' : ''}`}
+            >
+              {!isEditing && (
+                <div className='px-4 py-4'>
+                  {/* Player names row */}
+                  <div className='flex items-center gap-3 mb-3'>
+                    <span className='text-xs font-bold text-gray-400 shrink-0 w-6'>{abbr}</span>
+                    <div className='flex-1 flex items-center gap-2 min-w-0'>
+                      <span className={`text-sm font-semibold truncate flex-1 ${playerA === 'TBC' ? 'text-gray-300 italic font-normal' : 'text-gray-800'}`}>
+                        {playerA}
+                      </span>
+                      {result ? (
+                        <span className='text-sm font-bold text-gray-700 shrink-0 tabular-nums'>
+                          {result.team_a_games}–{result.team_b_games}
+                        </span>
+                      ) : (
+                        <span className='text-xs text-gray-300 shrink-0'>vs</span>
+                      )}
+                      <span className={`text-sm font-semibold truncate flex-1 text-right ${playerB === 'TBC' ? 'text-gray-300 italic font-normal' : 'text-gray-800'}`}>
+                        {playerB}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Result summary or action buttons */}
+                  {result ? (
+                    <div className='flex items-center justify-between gap-3 pl-9'>
+                      <div className='flex-1 min-w-0'>
+                        {gameScoreStr
+                          ? <p className='text-xs text-gray-400 leading-relaxed'>{gameScoreStr}</p>
+                          : <p className='text-xs text-gray-400'>{result.team_a_games} games to {result.team_b_games}</p>
+                        }
+                      </div>
+                      <button
+                        onClick={() => openExtraEditor(type)}
+                        className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-3 py-1.5 rounded-lg shrink-0 transition-colors'
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ) : bothReady ? (
+                    <div className='flex gap-2 pl-9'>
+                      {canScore && (
+                        <button
+                          onClick={() => onScoreMatch({
+                            isTeamRRExtra: true,
+                            extraMatchType: type,
+                            tournamentId,
+                            fixtureId: fixture._id,
+                            player1Name: playerA,
+                            player2Name: playerB,
+                            matchConfig: matchConfig || {},
+                          })}
+                          className='flex-1 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                        >
+                          Score match
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openExtraEditor(type)}
+                        className={`flex-1 py-2.5 text-sm font-semibold border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors`}
+                      >
+                        Enter result
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Inline result editor */}
+              {isEditing && (
+                <div className='px-4 py-4 space-y-5'>
+                  <div className='flex items-center gap-3'>
+                    <span className='text-xs font-bold text-gray-400 shrink-0 w-6'>{abbr}</span>
+                    <div className='flex-1 flex items-center gap-2 min-w-0'>
+                      <span className='text-sm font-semibold text-gray-800 truncate flex-1'>{playerA}</span>
+                      <span className='text-gray-300 text-xs shrink-0'>vs</span>
+                      <span className='text-sm font-semibold text-gray-800 truncate flex-1 text-right'>{playerB}</span>
+                    </div>
+                    <button
+                      onClick={() => { setExtraResultEditing(null); setExtraResultDraft([]); }}
+                      className='text-gray-300 hover:text-gray-500 shrink-0'
+                    >
+                      <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className='flex items-baseline justify-between mb-2'>
+                      <span className='text-xs font-semibold text-gray-500 uppercase tracking-wide'>Game scores</span>
+                      <span className='text-xs text-gray-400'>highest score wins</span>
+                    </div>
+                    <div className='space-y-2'>
+                      {extraResultDraft.map((g, gIdx) => (
+                        <div key={gIdx} className='flex items-center gap-3'>
+                          <span className='text-xs text-gray-400 w-14 shrink-0'>Game {gIdx + 1}</span>
+                          <div className='flex items-center gap-2 flex-1'>
+                            <input
+                              type='number' min='0' value={g.a}
+                              onChange={(e) => {
+                                const next = [...extraResultDraft];
+                                next[gIdx] = { ...next[gIdx], a: e.target.value };
+                                setExtraResultDraft(next);
+                              }}
+                              className='w-16 text-center text-lg font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                            />
+                            <span className='text-gray-300'>–</span>
+                            <input
+                              type='number' min='0' value={g.b}
+                              onChange={(e) => {
+                                const next = [...extraResultDraft];
+                                next[gIdx] = { ...next[gIdx], b: e.target.value };
+                                setExtraResultDraft(next);
+                              }}
+                              className='w-16 text-center text-lg font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                            />
+                          </div>
+                          {extraResultDraft.length > 1 && (
+                            <button
+                              onClick={() => setExtraResultDraft((d) => d.filter((_, i) => i !== gIdx))}
+                              className='text-gray-300 hover:text-red-400 transition-colors shrink-0'
+                            >
+                              <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setExtraResultDraft((d) => [...d, { a: '', b: '' }])}
+                      className='mt-2 text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1'
+                    >
+                      <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 4v16m8-8H4' />
+                      </svg>
+                      Add game
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => saveExtraResult(type)}
+                    disabled={extraResultDraft.filter((g) => g.a !== '' && g.b !== '').length === 0 || savingExtraResult}
+                    className='w-full py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+                  >
+                    {savingExtraResult ? 'Saving…' : `Save ${label} Result`}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Incomplete matches summary */}
+        {(() => {
+          const incompleteStrings = STRING_COUNT - persistedStrings.length;
+          const incompleteExtras = ['racketball', 'beginner'].filter((type) => {
+            const { a, b } = extraPlayers[type];
+            const bothReady = a && b && a !== 'TBC' && b !== 'TBC';
+            return bothReady && !extraResults[type];
+          }).length;
+          const total = incompleteStrings + incompleteExtras;
+          if (total === 0) return null;
+          return (
+            <p className='text-center text-xs text-gray-400 pt-1'>
+              {total} match{total !== 1 ? 'es' : ''} still to enter
+            </p>
+          );
+        })()}
       </div>
       )}
 
@@ -688,11 +1013,6 @@ export default function TeamFixtureScreen({
             {submitting ? 'Saving…' : isEdit ? 'Update Fixture' : 'Complete Fixture'}
           </button>
 
-          {!allPersisted && (
-            <p className='text-center text-xs text-gray-400'>
-              Save all {STRING_COUNT} strings to complete the fixture
-            </p>
-          )}
         </div>
       </div>
     </div>
@@ -710,4 +1030,6 @@ TeamFixtureScreen.propTypes = {
   onScoreMatch: PropTypes.func.isRequired,
   matchConfig: PropTypes.object,
   poolPlayers: PropTypes.array,
+  racketballPlayers: PropTypes.array,
+  beginnerPlayers: PropTypes.array,
 };

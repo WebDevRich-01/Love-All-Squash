@@ -39,6 +39,9 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [addPoolDraft, setAddPoolDraft] = useState(null); // null=hidden, {name,seed}=open
   const [addPoolSaving, setAddPoolSaving] = useState(false);
   const [addPoolError, setAddPoolError] = useState(null);
+  const [addExtraDraft, setAddExtraDraft] = useState(null); // null=hidden, {type,name}=open
+  const [addExtraSaving, setAddExtraSaving] = useState(false);
+  const [addExtraError, setAddExtraError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const pendingAction = useRef(null);
 
@@ -395,7 +398,9 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             tournamentId={tournamentId}
             passphrase={getCachedPassphrase(tournamentId)}
             matchConfig={tournament.config?.match || {}}
-            poolPlayers={participants.filter((p) => p.is_pool)}
+            poolPlayers={participants.filter((p) => p.player_type === 'pool' || p.is_pool)}
+            racketballPlayers={participants.filter((p) => p.player_type === 'racketball')}
+            beginnerPlayers={participants.filter((p) => p.player_type === 'beginner')}
             onBack={() => { setTeamFixture(null); loadTournamentData(); }}
             onResultSaved={() => { setTeamFixture(null); loadTournamentData(); }}
             onScoreMatch={onScoreMatch}
@@ -720,6 +725,9 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
               players: poolPlayers.filter((p) => g.seeds.includes(p.seed)),
             }));
 
+            const racketballPlayers = participants.filter((p) => p.player_type === 'racketball');
+            const beginnerPlayers = participants.filter((p) => p.player_type === 'beginner');
+
             return (
             <div className='space-y-3'>
               {draftDivisions.map((div, divIdx) => {
@@ -907,6 +915,98 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                   </div>
                 )}
               </div>
+
+              {/* Racketball and Beginner sections */}
+              {[
+                { key: 'racketball', label: 'Racketball', players: racketballPlayers },
+                { key: 'beginner',   label: 'Beginners',  players: beginnerPlayers   },
+              ].map(({ key, label, players }) => (
+                <div key={key} className='bg-white rounded-xl shadow-sm overflow-hidden'>
+                  <button
+                    onClick={() => setExpandedTeamsDivision(expandedTeamsDivision === key ? null : key)}
+                    className='w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors focus:outline-none'
+                  >
+                    <span className='font-bold text-gray-900'>{label}</span>
+                    <div className='flex items-center gap-2 shrink-0'>
+                      <span className='text-xs text-gray-400'>{players.length} players</span>
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ${expandedTeamsDivision === key ? 'rotate-180' : ''}`}
+                        fill='none' stroke='currentColor' viewBox='0 0 24 24'
+                      >
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+                      </svg>
+                    </div>
+                  </button>
+                  {expandedTeamsDivision === key && (
+                    <div className='border-t p-4 space-y-3'>
+                      {players.length > 0 && (
+                        <div className='space-y-1.5'>
+                          {players.map((p) => (
+                            <div key={p._id} className='text-sm text-gray-700'>{p.name}</div>
+                          ))}
+                        </div>
+                      )}
+                      {players.length === 0 && !addExtraDraft && (
+                        <p className='text-sm text-gray-400 italic'>No players added yet</p>
+                      )}
+
+                      {/* Add player form */}
+                      {addExtraDraft?.type === key ? (
+                        <div className='border border-gray-200 rounded-xl p-4 space-y-3'>
+                          <p className='text-sm font-semibold text-gray-700'>New {label.toLowerCase()} player</p>
+                          <input
+                            type='text'
+                            value={addExtraDraft.name}
+                            onChange={(e) => setAddExtraDraft((d) => ({ ...d, name: e.target.value }))}
+                            placeholder='Player name'
+                            className='w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300'
+                          />
+                          {addExtraError && <p className='text-xs text-red-600'>{addExtraError}</p>}
+                          <div className='flex gap-2'>
+                            <button
+                              onClick={() => { setAddExtraDraft(null); setAddExtraError(null); }}
+                              className='flex-1 py-2 text-sm font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors'
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={!addExtraDraft.name.trim() || addExtraSaving}
+                              onClick={async () => {
+                                setAddExtraSaving(true);
+                                setAddExtraError(null);
+                                try {
+                                  const passphrase = getCachedPassphrase(tournamentId);
+                                  await api.addTournamentParticipant(
+                                    tournamentId,
+                                    { name: addExtraDraft.name.trim(), player_type: key },
+                                    passphrase
+                                  );
+                                  setAddExtraDraft(null);
+                                  await loadTournamentData();
+                                } catch (err) {
+                                  setAddExtraError(err.message || 'Failed to add player');
+                                } finally {
+                                  setAddExtraSaving(false);
+                                }
+                              }}
+                              className='flex-1 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+                            >
+                              {addExtraSaving ? 'Saving…' : 'Add player'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => withPassphrase(() => setAddExtraDraft({ type: key, name: '' }))}
+                          className='w-full py-2.5 text-sm font-semibold border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-colors'
+                        >
+                          + Add {label.toLowerCase()} player
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
             );
           })()}

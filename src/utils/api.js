@@ -378,13 +378,29 @@ const api = {
     return response.json();
   },
 
-  saveTeamLineup: async (tournamentId, matchId, side, lineup) => {
+  saveExtraMatchResult: async (tournamentId, matchId, matchType, result) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/extra-result`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_type: matchType, ...result }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  saveTeamLineup: async (tournamentId, matchId, side, lineup, extraPlayers = {}) => {
     const response = await fetchWithTimeout(
       `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/lineup`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ side, lineup }),
+        body: JSON.stringify({ side, lineup, ...extraPlayers }),
       }
     );
     if (!response.ok) {

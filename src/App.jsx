@@ -129,6 +129,34 @@ function App() {
       return;
     }
 
+    // ── Extra match (beginner) — save result and return to fixture ──
+    if (tournamentMatchContext?.isTeamRRExtra) {
+      const { tournamentId, fixtureId, extraMatchType } = tournamentMatchContext;
+      const gameScores = gameState.gameScores;
+      const teamAGames = gameScores.filter((s) => s.player1 > s.player2).length;
+      const teamBGames = gameScores.filter((s) => s.player2 > s.player1).length;
+
+      try {
+        await api.saveExtraMatchResult(tournamentId, fixtureId, extraMatchType, {
+          team_a_games: teamAGames,
+          team_b_games: teamBGames,
+          game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
+        });
+      } catch (error) {
+        if (import.meta.env.DEV) console.error('Error saving extra match result:', error);
+        isSubmitting.current = false;
+        setSubmitError('Failed to save the match result. Please check your connection and try again.');
+        return;
+      }
+
+      isSubmitting.current = false;
+      useGameStore.getState().resetGame();
+      setTournamentMatchContext(null);
+      setHasActiveMatch(false);
+      navigate(`/tournaments/${tournamentId}`, { state: { reopenFixtureId: fixtureId } });
+      return;
+    }
+
     // ── Regular tournament match — submit result ──
     if (tournamentMatchContext) {
       const player1Wins = gameState.gameScores.filter(
@@ -205,7 +233,7 @@ function App() {
     const ctx = useGameStore.getState().tournamentMatchContext;
     setTournamentMatchContext(null);
     setHasActiveMatch(false);
-    if (ctx?.isTeamRRString) {
+    if (ctx?.isTeamRRString || ctx?.isTeamRRExtra) {
       navigate(`/tournaments/${ctx.tournamentId}`, { state: { reopenFixtureId: ctx.fixtureId } });
     } else {
       navigate('/tournaments');
