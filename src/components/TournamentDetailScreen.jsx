@@ -373,7 +373,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     const draftDivisions = Array.from({ length: divCount }, (_, i) => ({
       name: `Division ${String.fromCharCode(65 + i)}`,
       teams: participants
-        .filter((p) => !p.is_pool && (p.division_index ?? 0) === i)
+        .filter((p) => !p.is_pool && p.player_type == null && (p.division_index ?? 0) === i)
         .sort((a, b) => (a.seed || 999) - (b.seed || 999)),
     }));
 

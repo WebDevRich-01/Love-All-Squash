@@ -115,6 +115,133 @@ const emptyTeam = (name = '') => ({
   ],
 });
 
+const SUMMER_2026_PRESET = {
+  name: 'Summer League 2026',
+  format: 'team_round_robin',
+  divisions: [
+    {
+      name: 'Division A',
+      teams: [
+        { name: 'Blue Fuse', roster: [
+          { string_number: 1, player_name: 'Andy Ewings', is_captain: true },
+          { string_number: 2, player_name: 'Jon Cordier' },
+          { string_number: 3, player_name: 'James Gough' },
+          { string_number: 4, player_name: 'Carolyn Chennels' },
+          { string_number: 5, player_name: 'Nic Ross' },
+        ]},
+        { name: 'Watson Financial', roster: [
+          { string_number: 1, player_name: 'Henry Duncanson', is_captain: true },
+          { string_number: 2, player_name: 'Adam Conisbee' },
+          { string_number: 3, player_name: 'Mark Ricketts' },
+          { string_number: 4, player_name: 'Ian Ashworth' },
+          { string_number: 5, player_name: 'Chris Stoaling' },
+        ]},
+        { name: 'Philip Clifford Design', roster: [
+          { string_number: 1, player_name: 'Mark Radley' },
+          { string_number: 2, player_name: 'Chris Osborne', is_captain: true },
+          { string_number: 3, player_name: 'George Samios' },
+          { string_number: 4, player_name: 'Julian Kashdan-Brown' },
+          { string_number: 5, player_name: 'Thomas Osborne' },
+        ]},
+        { name: 'C.S. Simmons Engineering', roster: [
+          { string_number: 1, player_name: 'Andy Killey' },
+          { string_number: 2, player_name: 'Dave Major', is_captain: true },
+          { string_number: 3, player_name: 'Mark Simmons' },
+          { string_number: 4, player_name: 'Mark Hoskin' },
+          { string_number: 5, player_name: 'Karl Sax' },
+        ]},
+      ],
+    },
+    {
+      name: 'Division B',
+      teams: [
+        { name: 'PWM Training', roster: [
+          { string_number: 1, player_name: 'Alisdair Wriglesworth' },
+          { string_number: 2, player_name: 'Kevin Mountford' },
+          { string_number: 3, player_name: 'Laurie Willis', is_captain: true },
+          { string_number: 4, player_name: 'Mike Morris' },
+          { string_number: 5, player_name: 'Gwill Lloyd' },
+        ]},
+        { name: 'Lovell Carpentry', roster: [
+          { string_number: 1, player_name: 'Yuji Westmacott' },
+          { string_number: 2, player_name: 'Richard Dixon', is_captain: true },
+          { string_number: 3, player_name: 'Murray Kenneth' },
+          { string_number: 4, player_name: 'Andy Rogers' },
+          { string_number: 5, player_name: 'Guy Senior' },
+        ]},
+        { name: 'Brown Hen', roster: [
+          { string_number: 1, player_name: 'Jono Sumner' },
+          { string_number: 2, player_name: 'Brenda Pegrum' },
+          { string_number: 3, player_name: 'Julian Ragless', is_captain: true },
+          { string_number: 4, player_name: 'Jools Browning' },
+          { string_number: 5, player_name: 'Sam Browning' },
+        ]},
+        { name: 'My Village Architect', roster: [
+          { string_number: 1, player_name: 'Tim Jones' },
+          { string_number: 2, player_name: 'Natalie Anwyll', is_captain: true },
+          { string_number: 3, player_name: 'Jason Collins' },
+          { string_number: 4, player_name: 'Ryan Burnham' },
+          { string_number: 5, player_name: 'Hakan Aysan' },
+        ]},
+      ],
+    },
+  ],
+  // fixture_dates keys are computed from team pair order within each division
+  // Div A: [Blue Fuse, Watson Financial, Philip Clifford Design, CS Simmons]
+  // D1F1=BF/WF, D1F2=BF/PCD, D1F3=BF/CSS, D1F4=WF/PCD, D1F5=WF/CSS, D1F6=PCD/CSS
+  // Div B: [PWM, Lovell, Brown Hen, My Village]
+  // D2F1=PWM/LC, D2F2=PWM/BH, D2F3=PWM/MVA, D2F4=LC/BH, D2F5=LC/MVA, D2F6=BH/MVA
+  fixture_dates: {
+    D1F1: '2026-07-15', D1F2: '2026-06-24', D1F3: '2026-07-08',
+    D1F4: '2026-07-01', D1F5: '2026-06-17', D1F6: '2026-07-22',
+    D2F1: '2026-07-15', D2F2: '2026-06-17', D2F3: '2026-07-01',
+    D2F4: '2026-07-08', D2F5: '2026-06-24', D2F6: '2026-07-22',
+  },
+  pool_players: [
+    { name: 'Oscar Lambert',    seed: 1 },
+    { name: 'Oliver Tuncliffe', seed: 2 },
+    { name: 'Jon Foulds',       seed: 2 },
+    { name: 'Ben Warren',       seed: 2 },
+    { name: 'Jeremy Goulding',  seed: 2 },
+    { name: 'Rupert Larkin',    seed: 3 },
+    { name: 'Julian Moore',     seed: 3 },
+    { name: 'Matt Burn',        seed: 3 },
+    { name: 'Angus Anderson',   seed: 3 },
+    { name: 'Tom Wadsworth',    seed: 5 },
+    { name: 'Wendy Harrison',   seed: 5 },
+    { name: 'Eddie Spruit',     seed: 5 },
+    { name: 'Martin Watson',    seed: 5 },
+    { name: 'Rich Morris',      seed: 5 },
+    { name: 'Andrew McGregor',  seed: 5 },
+    { name: 'Adam Blezard',     seed: 5 },
+    { name: 'Chris Lambert',    seed: 5 },
+  ],
+  racketball_players: [
+    'Phil Cooney', 'Brendan Pergrum', 'Henry Duncanson', 'Jeremy Goulding',
+    'Rupert Larkin', 'Jon Cordier', 'Mark Simmons', 'Mike Morris',
+    'Tom Smith', 'James Scully',
+  ],
+  beginner_players: ['Claire Ackerman', 'Suzie Lawler', 'Jack Osborne'],
+};
+
+const fillSummer2026 = () => ({
+  name: SUMMER_2026_PRESET.name,
+  format: 'team_round_robin',
+  divisions: SUMMER_2026_PRESET.divisions.map((div) => ({
+    name: div.name,
+    teams: div.teams.map((t) => ({
+      id: `team-${Date.now()}-${Math.random()}`,
+      name: t.name,
+      color: 'border-blue-500',
+      roster: t.roster,
+    })),
+  })),
+  fixture_dates: SUMMER_2026_PRESET.fixture_dates,
+  pool_players: SUMMER_2026_PRESET.pool_players.map((p, i) => ({ id: `pool-s26-${i}`, ...p })),
+  racketball_players: SUMMER_2026_PRESET.racketball_players.map((name, i) => ({ id: `rb-s26-${i}`, name })),
+  beginner_players: SUMMER_2026_PRESET.beginner_players.map((name, i) => ({ id: `bg-s26-${i}`, name })),
+});
+
 const TEST_DIVISIONS = [
   {
     name: 'Division A',
@@ -160,7 +287,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         const divCount = tournament.config?.divisions?.count || 2;
         const byDiv = {};
         initialParticipants.forEach((p) => {
-          if (p.is_pool) return;
+          if (p.is_pool || p.player_type) return;
           const idx = p.division_index ?? 0;
           if (!byDiv[idx]) byDiv[idx] = [];
           byDiv[idx].push(p);
@@ -200,6 +327,12 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
         pool_players: (initialParticipants || [])
           .filter((p) => p.is_pool)
           .map((p) => ({ id: `pool-${p._id}`, name: p.name, seed: p.seed })),
+        racketball_players: (initialParticipants || [])
+          .filter((p) => p.player_type === 'racketball')
+          .map((p) => ({ id: `rb-${p._id}`, name: p.name })),
+        beginner_players: (initialParticipants || [])
+          .filter((p) => p.player_type === 'beginner')
+          .map((p) => ({ id: `bg-${p._id}`, name: p.name })),
       };
     }
     return {
@@ -220,6 +353,8 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       divisions: [emptyDivision('Division A'), emptyDivision('Division B')],
       fixture_dates: {},
       pool_players: [],
+      racketball_players: [],
+      beginner_players: [],
     };
   });
 
@@ -435,6 +570,14 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
             name: p.name,
             seed: p.seed,
             is_pool: true,
+          })),
+          ...(formData.racketball_players || []).map((p) => ({
+            name: p.name,
+            player_type: 'racketball',
+          })),
+          ...(formData.beginner_players || []).map((p) => ({
+            name: p.name,
+            player_type: 'beginner',
           })),
         ];
         config = {
@@ -749,6 +892,13 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                     Pool {formData.pool_players.length > 0 && `(${formData.pool_players.length})`}
                   </button>
                   <div className='ml-auto flex items-center gap-2'>
+                    <button
+                      type='button'
+                      onClick={() => setFormData((prev) => ({ ...prev, ...fillSummer2026() }))}
+                      className='text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium'
+                    >
+                      Fill Summer 2026
+                    </button>
                     {import.meta.env.DEV && (
                       <button
                         type='button'
