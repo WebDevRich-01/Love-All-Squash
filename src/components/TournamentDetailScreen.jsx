@@ -623,6 +623,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       const result = fixture.result;
                       const draftCount = fixture.draft_string_results?.length ?? 0;
                       const inProgress = !done && draftCount > 0;
+                      const bothConfirmed = !done && !inProgress && fixture.team_a_confirmed && fixture.team_b_confirmed;
                       const fixtureDate = formatFixtureDate(fixture.scheduled_at);
 
                       let statusPill;
@@ -638,12 +639,14 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                             In Progress {draftCount}/5
                           </span>
                         );
-                      } else {
+                      } else if (bothConfirmed) {
                         statusPill = (
-                          <span className='text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
-                            Not started
+                          <span className='text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
+                            Ready
                           </span>
                         );
+                      } else {
+                        statusPill = null;
                       }
 
                       return (
