@@ -365,6 +365,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
   const [error, setError] = useState(null);
   const [teamRrTab, setTeamRrTab] = useState('div-0');
   const [poolInput, setPoolInput] = useState({ name: '', seed: null });
+  const [extraPlayerInput, setExtraPlayerInput] = useState({ racketball: '', beginner: '' });
 
   // Drag and drop sensors
   // PointerSensor needs a distance constraint so a small tap doesn't cancel the drag.
@@ -475,6 +476,26 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
 
   const removePoolPlayer = (id) => {
     setFormData((prev) => ({ ...prev, pool_players: prev.pool_players.filter((p) => p.id !== id) }));
+  };
+
+  const addExtraPlayer = (type) => {
+    const name = extraPlayerInput[type].trim();
+    if (!name) return;
+    setFormData((prev) => ({
+      ...prev,
+      [`${type}_players`]: [
+        ...(prev[`${type}_players`] || []),
+        { id: `${type}-${Date.now()}-${Math.random()}`, name },
+      ],
+    }));
+    setExtraPlayerInput((p) => ({ ...p, [type]: '' }));
+  };
+
+  const removeExtraPlayer = (type, id) => {
+    setFormData((prev) => ({
+      ...prev,
+      [`${type}_players`]: prev[`${type}_players`].filter((p) => p.id !== id),
+    }));
   };
 
   // Handle drag end for Monrad tournaments
@@ -1069,6 +1090,54 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                                 </button>
                               </div>
                             ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Racketball and Beginner sections */}
+                    {[
+                      { type: 'racketball', label: 'Racketball' },
+                      { type: 'beginner',   label: 'Beginners'  },
+                    ].map(({ type, label }) => {
+                      const players = formData[`${type}_players`] || [];
+                      return (
+                        <div key={type} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                          <div className='px-4 py-2.5 bg-gray-50 border-b flex items-center justify-between'>
+                            <h3 className='text-sm font-semibold text-gray-700'>{label}</h3>
+                            <span className='text-xs text-gray-400'>{players.length} players</span>
+                          </div>
+                          <div className='divide-y divide-gray-100'>
+                            {players.map((p) => (
+                              <div key={p.id} className='flex items-center justify-between px-4 py-2.5'>
+                                <span className='text-sm text-gray-800'>{p.name}</span>
+                                <button
+                                  type='button'
+                                  onClick={() => removeExtraPlayer(type, p.id)}
+                                  className='text-gray-300 hover:text-red-500 text-xl leading-none transition-colors'
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            <div className='flex gap-2 px-3 py-2'>
+                              <input
+                                type='text'
+                                value={extraPlayerInput[type]}
+                                onChange={(e) => setExtraPlayerInput((p) => ({ ...p, [type]: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExtraPlayer(type); } }}
+                                placeholder={`Add ${label.toLowerCase()} player`}
+                                className='flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400'
+                              />
+                              <button
+                                type='button'
+                                onClick={() => addExtraPlayer(type)}
+                                disabled={!extraPlayerInput[type].trim()}
+                                className='text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+                              >
+                                Add
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );

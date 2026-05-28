@@ -459,7 +459,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
         {(() => {
           const divTabNames = tournament.status === 'draft'
             ? draftDivisions.map((d) => d.name)
-            : Object.values(fixturesByGroup).map(({ group }) => group.name);
+            : Object.values(fixturesByGroup).sort((a, b) => a.group.name.localeCompare(b.group.name)).map(({ group }) => group.name);
           const allTabs = [...divTabNames, 'Teams'];
           return (
             <div className='bg-white border-b shrink-0 px-4 lg:px-8 py-3'>
@@ -505,44 +505,87 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
               <div className='bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800'>
                 Tournament is in draft. Click <strong>Start Tournament</strong> to generate all fixtures.
               </div>
-              {draftDivisions.filter((_, i) => i === selectedDivision).map((div, divIdx) => (
-                <div key={divIdx} className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
-                  <div className='px-4 py-3 bg-gray-50 border-b flex items-center justify-between'>
-                    <h2 className='font-bold text-gray-800'>{div.name}</h2>
-                    <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
-                  </div>
-                  <div className='divide-y divide-gray-100'>
-                    {div.teams.map((team) => (
-                      <div key={team._id} className='px-4 py-3'>
-                        <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
-                        <div className='grid grid-cols-5 gap-2'>
-                          {[1, 2, 3, 4, 5].map((sn) => {
-                            const player = team.roster?.find((r) => r.string_number === sn);
-                            return (
-                              <div key={sn} className='text-center'>
-                                <span className='block text-xs text-gray-400 mb-0.5'>S{sn}</span>
-                                <span className='block text-xs font-medium text-gray-700 truncate'>
-                                  {player?.player_name || <span className='text-gray-300'>—</span>}
-                                </span>
-                              </div>
-                            );
-                          })}
+              {draftDivisions.filter((_, i) => i === selectedDivision).map((div, divIdx) => {
+                // Build fixture slots for this division
+                const fixtureDates = tournament.config?.fixture_dates || {};
+                const divNum = selectedDivision + 1;
+                const slots = [];
+                let n = 1;
+                for (let i = 0; i < div.teams.length; i++) {
+                  for (let j = i + 1; j < div.teams.length; j++) {
+                    const key = `D${divNum}F${n}`;
+                    slots.push({ key, teamA: div.teams[i].name, teamB: div.teams[j].name, date: fixtureDates[key] });
+                    n++;
+                  }
+                }
+
+                return (
+                <div key={divIdx} className='space-y-4'>
+                  {/* Team roster cards */}
+                  <div className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                    <div className='px-4 py-3 bg-gray-50 border-b flex items-center justify-between'>
+                      <h2 className='font-bold text-gray-800'>{div.name}</h2>
+                      <span className='text-xs text-gray-400'>{div.teams.length} teams</span>
+                    </div>
+                    <div className='divide-y divide-gray-100'>
+                      {div.teams.map((team) => (
+                        <div key={team._id} className='px-4 py-3'>
+                          <p className='font-semibold text-gray-800 text-sm mb-2'>{team.name}</p>
+                          <div className='grid grid-cols-5 gap-2'>
+                            {[1, 2, 3, 4, 5].map((sn) => {
+                              const player = team.roster?.find((r) => r.string_number === sn);
+                              return (
+                                <div key={sn} className='text-center'>
+                                  <span className='block text-xs text-gray-400 mb-0.5'>S{sn}</span>
+                                  <span className='block text-xs font-medium text-gray-700 truncate'>
+                                    {player?.player_name || <span className='text-gray-300'>—</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    {div.teams.length === 0 && (
-                      <p className='px-4 py-3 text-sm text-gray-400'>No teams assigned</p>
-                    )}
+                      ))}
+                      {div.teams.length === 0 && (
+                        <p className='px-4 py-3 text-sm text-gray-400'>No teams assigned</p>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Fixture schedule */}
+                  {slots.length > 0 && (
+                    <div className='bg-white rounded-xl border border-gray-200 overflow-hidden'>
+                      <div className='px-4 py-3 bg-gray-50 border-b'>
+                        <h2 className='font-bold text-gray-800'>Fixture Schedule</h2>
+                      </div>
+                      <div className='divide-y divide-gray-100'>
+                        {slots.map((slot) => (
+                          <div key={slot.key} className='flex items-center gap-3 px-4 py-3'>
+                            <div className='flex-1 min-w-0 text-sm text-gray-700'>
+                              <span className='font-medium'>{slot.teamA}</span>
+                              <span className='text-gray-400 mx-2'>vs</span>
+                              <span className='font-medium'>{slot.teamB}</span>
+                            </div>
+                            <span className='text-sm text-gray-500 shrink-0'>
+                              {slot.date
+                                ? new Date(slot.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+                                : <span className='text-gray-300'>No date set</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
           {/* Division standings + fixtures (active/completed state) */}
           {Object.values(fixturesByGroup).length > 0 && selectedDivision !== 'teams' && (
           <div className='space-y-6'>
-          {Object.values(fixturesByGroup).filter((_, i) => i === selectedDivision).map(({ group, fixtures }) => {
+          {Object.values(fixturesByGroup).sort((a, b) => a.group.name.localeCompare(b.group.name)).filter((_, i) => i === selectedDivision).map(({ group, fixtures }) => {
             const standings = group.standings || [];
             const sortedFixtures = [...fixtures].sort((a, b) => {
               const aDate = a.scheduled_at ? new Date(a.scheduled_at) : null;
