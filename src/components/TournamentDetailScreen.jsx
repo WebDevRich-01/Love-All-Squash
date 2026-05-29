@@ -670,7 +670,14 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       const done = fixture.status === 'completed' || fixture.status === 'walkover';
                       const result = fixture.result;
                       const draftCount = fixture.draft_string_results?.length ?? 0;
-                      const inProgress = !done && draftCount > 0;
+                      const hasRB = !!(fixture.team_a_racketball_player && fixture.team_b_racketball_player);
+                      const hasBG = !!(fixture.team_a_beginner_player && fixture.team_b_beginner_player);
+                      const extraTotal = (hasRB ? 1 : 0) + (hasBG ? 1 : 0);
+                      const extraDone = (hasRB && fixture.racketball_result?.team_a_games != null ? 1 : 0)
+                                      + (hasBG && fixture.beginner_result?.team_a_games != null ? 1 : 0);
+                      const totalMatches = 5 + extraTotal;
+                      const doneCount = draftCount + extraDone;
+                      const inProgress = !done && doneCount > 0;
                       const bothConfirmed = !done && !inProgress && fixture.team_a_confirmed && fixture.team_b_confirmed;
                       const fixtureDate = formatFixtureDate(fixture.scheduled_at);
 
@@ -684,7 +691,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       } else if (inProgress) {
                         statusPill = (
                           <span className='text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap'>
-                            In Progress {draftCount}/5
+                            In Progress {doneCount}/{totalMatches}
                           </span>
                         );
                       } else if (bothConfirmed) {

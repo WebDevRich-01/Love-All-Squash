@@ -98,8 +98,8 @@ export default function TeamFixtureScreen({
     beginner:   { a: fixture.team_a_beginner_player   || null, b: fixture.team_b_beginner_player   || null },
   });
   const [extraResults, setExtraResults] = useState({
-    racketball: fixture.racketball_result || null,
-    beginner:   fixture.beginner_result   || null,
+    racketball: fixture.racketball_result?.team_a_games != null ? fixture.racketball_result : null,
+    beginner:   fixture.beginner_result?.team_a_games   != null ? fixture.beginner_result   : null,
   });
   const [extraResultEditing, setExtraResultEditing] = useState(null); // null | 'racketball' | 'beginner'
   const [extraResultDraft, setExtraResultDraft] = useState([]);
@@ -787,7 +787,8 @@ export default function TeamFixtureScreen({
           const playerA = extraPlayers[type].a;
           const playerB = extraPlayers[type].b;
           if (!playerA && !playerB) return null;
-          const bothReady = playerA && playerB && playerA !== 'TBC' && playerB !== 'TBC';
+          const bothSet = !!(playerA && playerB); // both slots filled (TBC counts)
+          const bothReady = bothSet && playerA !== 'TBC' && playerB !== 'TBC';
           const result = extraResults[type];
           const isEditing = extraResultEditing === type;
           const gameScoreStr = result?.game_scores?.length
@@ -837,9 +838,9 @@ export default function TeamFixtureScreen({
                         Edit
                       </button>
                     </div>
-                  ) : bothReady ? (
+                  ) : bothSet ? (
                     <div className='flex gap-2 pl-9'>
-                      {canScore && (
+                      {canScore && bothReady && (
                         <button
                           onClick={() => onScoreMatch({
                             isTeamRRExtra: true,
@@ -958,8 +959,7 @@ export default function TeamFixtureScreen({
           const incompleteStrings = STRING_COUNT - persistedStrings.length;
           const incompleteExtras = ['racketball', 'beginner'].filter((type) => {
             const { a, b } = extraPlayers[type];
-            const bothReady = a && b && a !== 'TBC' && b !== 'TBC';
-            return bothReady && !extraResults[type];
+            return !!(a && b) && !extraResults[type];
           }).length;
           const total = incompleteStrings + incompleteExtras;
           if (total === 0) return null;
