@@ -378,6 +378,18 @@ const api = {
     return response.json();
   },
 
+  removeExtraPlayer: async (tournamentId, matchId, type) => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/extra-player/${type}`,
+      { method: 'DELETE' }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    return response.json();
+  },
+
   saveExtraMatchResult: async (tournamentId, matchId, matchType, result) => {
     const response = await fetchWithTimeout(
       `${API_URL}/api/tournaments/${tournamentId}/matches/${matchId}/extra-result`,

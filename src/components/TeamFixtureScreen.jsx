@@ -232,6 +232,19 @@ export default function TeamFixtureScreen({
     }
   };
 
+  const removeExtraMatch = async (type) => {
+    setError(null);
+    try {
+      await api.removeExtraPlayer(tournamentId, fixture._id, type);
+      setExtraPlayers((prev) => ({
+        ...prev,
+        [type]: { a: null, b: null },
+      }));
+    } catch (err) {
+      setError(err.message || 'Failed to remove match');
+    }
+  };
+
   const addGame = () => setDraft((d) => ({ ...d, games: [...d.games, { a: '', b: '' }] }));
 
   const removeGame = (gIdx) =>
@@ -820,6 +833,15 @@ export default function TeamFixtureScreen({
                         {playerB}
                       </span>
                     </div>
+                    {!result && (
+                      <button
+                        onClick={() => removeExtraMatch(type)}
+                        className='text-xs text-gray-400 hover:text-red-500 transition-colors shrink-0'
+                        title={`Remove ${label} match`}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
 
                   {/* Result summary or action buttons */}
