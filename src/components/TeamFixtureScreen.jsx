@@ -127,7 +127,8 @@ export default function TeamFixtureScreen({
   const winner = totals.a > totals.b ? 'a' : totals.b > totals.a ? 'b' : null;
   const persistedStrings = strings.filter((s) => s.persisted);
   const allPersisted = persistedStrings.length === STRING_COUNT;
-  const canComplete = allPersisted && winner !== null;
+  const bothConfirmed = teamAConfirmed && teamBConfirmed;
+  const canComplete = allPersisted && winner !== null && bothConfirmed;
 
   const openRow = (idx) => {
     const s = strings[idx];
@@ -609,7 +610,7 @@ export default function TeamFixtureScreen({
                         Edit
                       </button>
                     </div>
-                  ) : (
+                  ) : (bothConfirmed || isEdit) ? (
                     <div className='flex gap-2 pl-9'>
                       <button
                         onClick={() =>
@@ -635,6 +636,8 @@ export default function TeamFixtureScreen({
                         Enter result
                       </button>
                     </div>
+                  ) : (
+                    <p className='pl-9 text-xs text-gray-400 italic'>Waiting for both teams to confirm</p>
                   )}
                 </div>
               )}
@@ -860,7 +863,7 @@ export default function TeamFixtureScreen({
                         Edit
                       </button>
                     </div>
-                  ) : bothSet ? (
+                  ) : bothSet && (bothConfirmed || isEdit) ? (
                     <div className='flex gap-2 pl-9'>
                       {canScore && bothReady && (
                         <button
@@ -885,6 +888,8 @@ export default function TeamFixtureScreen({
                         Enter result
                       </button>
                     </div>
+                  ) : bothSet ? (
+                    <p className='pl-9 text-xs text-gray-400 italic'>Waiting for both teams to confirm</p>
                   ) : null}
                 </div>
               )}
