@@ -132,7 +132,7 @@ export default function TeamFixtureScreen({
 
   const openRow = (idx) => {
     const s = strings[idx];
-    const games = s.games?.length ? [...s.games] : [{ a: '', b: '' }];
+    const games = s.games?.length ? [...s.games] : [{ a: '', b: '' }, { a: '', b: '' }, { a: '', b: '' }];
     setExpandedIdx(idx);
     setDraft({ team_a_player: s.team_a_player, team_b_player: s.team_b_player, games });
     setError(null);
@@ -198,7 +198,7 @@ export default function TeamFixtureScreen({
     const existing = extraResults[type];
     const games = existing?.game_scores?.length
       ? existing.game_scores.map((g) => ({ a: String(g.team_a), b: String(g.team_b) }))
-      : [{ a: '', b: '' }];
+      : [{ a: '', b: '' }, { a: '', b: '' }, { a: '', b: '' }];
     setExtraResultDraft(games);
     setExtraResultEditing(type);
     setError(null);
