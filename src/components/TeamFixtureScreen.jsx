@@ -336,7 +336,7 @@ export default function TeamFixtureScreen({
 
     try {
       if (isEdit) {
-        await api.editTeamFixtureResult(tournamentId, fixture._id, result, passphrase);
+        await api.editTeamFixtureResult(tournamentId, fixture._id, result);
       } else {
         await api.submitTeamFixtureResult(tournamentId, fixture._id, result);
       }
@@ -380,7 +380,7 @@ export default function TeamFixtureScreen({
                   onClick={() => openTeamEditor('a')}
                   className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
                 >
-                  {teamAConfirmed ? 'Edit' : 'Confirm team'}
+                  {teamAConfirmed ? 'Edit' : 'Select team'}
                 </button>
               </div>
               <div className='flex items-center gap-1.5 flex-1 justify-end'>
@@ -388,7 +388,7 @@ export default function TeamFixtureScreen({
                   onClick={() => openTeamEditor('b')}
                   className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
                 >
-                  {teamBConfirmed ? 'Edit' : 'Confirm team'}
+                  {teamBConfirmed ? 'Edit' : 'Select team'}
                 </button>
                 {teamBConfirmed && (
                   <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -797,7 +797,7 @@ export default function TeamFixtureScreen({
 
         {/* Racketball and beginner match rows */}
         {[
-          { type: 'racketball', label: 'Racketball', abbr: 'RB', canScore: false },
+          { type: 'racketball', label: 'Racketball', abbr: 'RB', canScore: true },
           { type: 'beginner',   label: 'Beginner',   abbr: 'BG', canScore: true  },
         ].map(({ type, label, abbr, canScore }) => {
           const playerA = extraPlayers[type].a;

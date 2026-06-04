@@ -87,7 +87,7 @@ export default function TeamFixtureModal({ fixture, teamA, teamB, tournamentId, 
 
     try {
       if (isEdit) {
-        await api.editTeamFixtureResult(tournamentId, fixture._id, result, passphrase);
+        await api.editTeamFixtureResult(tournamentId, fixture._id, result);
       } else {
         await api.submitTeamFixtureResult(tournamentId, fixture._id, result);
       }

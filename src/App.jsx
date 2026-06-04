@@ -235,8 +235,10 @@ function App() {
     setHasActiveMatch(false);
     if (ctx?.isTeamRRString || ctx?.isTeamRRExtra) {
       navigate(`/tournaments/${ctx.tournamentId}`, { state: { reopenFixtureId: ctx.fixtureId } });
+    } else if (ctx?.tournamentId) {
+      navigate(`/tournaments/${ctx.tournamentId}`);
     } else {
-      navigate('/tournaments');
+      navigate(-1);
     }
   };
 
@@ -352,6 +354,7 @@ function App() {
                 <GameScreen
                   onBackToSetup={handleBackToSetup}
                   onFinishMatch={handleFinishMatch}
+                  onCancelMatch={handleSkipAndExit}
                 />
               }
             />

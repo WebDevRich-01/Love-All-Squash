@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import api from '../utils/api';
 
-const EditParticipantsModal = ({ tournamentId, participants, passphrase, onSave, onCancel }) => {
+const EditParticipantsModal = ({ tournamentId, participants, onSave, onCancel }) => {
   const [names, setNames] = useState(
     Object.fromEntries(participants.map((p) => [p._id, p.name]))
   );
@@ -17,7 +17,7 @@ const EditParticipantsModal = ({ tournamentId, participants, passphrase, onSave,
       const changed = participants.filter((p) => names[p._id] !== p.name && names[p._id].trim());
       await Promise.all(
         changed.map((p) =>
-          api.updateTournamentParticipant(tournamentId, p._id, names[p._id].trim(), passphrase)
+          api.updateTournamentParticipant(tournamentId, p._id, names[p._id].trim())
         )
       );
       onSave();
@@ -90,7 +90,6 @@ const EditParticipantsModal = ({ tournamentId, participants, passphrase, onSave,
 EditParticipantsModal.propTypes = {
   tournamentId: PropTypes.string.isRequired,
   participants: PropTypes.array.isRequired,
-  passphrase: PropTypes.string.isRequired,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };

@@ -10,7 +10,7 @@ function buildAnnouncement({ serverName, receiverName, bestOf, pointsToWin, clea
   return `${serverName} to serve, ${receiverName} to receive. Best of ${bestOf} games, first to ${pointsToWin}${clearText}.${handicapText} Love all, play.`;
 }
 
-export default function MatchSetupModal({ onClose }) {
+export default function MatchSetupModal({ onClose, onCancel }) {
   const player1 = useGameStore((state) => state.player1);
   const player2 = useGameStore((state) => state.player2);
   const matchSettings = useGameStore((state) => state.matchSettings);
@@ -133,6 +133,15 @@ export default function MatchSetupModal({ onClose }) {
         >
           Start Match
         </button>
+
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className='w-full py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors'
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );
@@ -140,4 +149,5 @@ export default function MatchSetupModal({ onClose }) {
 
 MatchSetupModal.propTypes = {
   onClose: PropTypes.func.isRequired,
+  onCancel: PropTypes.func,
 };

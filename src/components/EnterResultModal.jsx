@@ -28,7 +28,7 @@ HandicapRow.propTypes = {
   onDecrement: PropTypes.func.isRequired,
 };
 
-const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = false, passphrase = null, onSave, onCancel }) => {
+const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = false, onSave, onCancel }) => {
   const bestOf = matchConfig.best_of || 5;
   const player1Name = match.participant_a?.name || 'Player 1';
   const player2Name = match.participant_b?.name || 'Player 2';
@@ -132,7 +132,7 @@ const EnterResultModal = ({ match, tournamentId, matchConfig = {}, isHandicap = 
         }),
       };
       if (isEditMode) {
-        await api.editTournamentMatchResult(tournamentId, match._id, payload, passphrase);
+        await api.editTournamentMatchResult(tournamentId, match._id, payload);
       } else {
         await api.submitTournamentMatchResult(tournamentId, match._id, payload);
       }
@@ -288,7 +288,6 @@ EnterResultModal.propTypes = {
   tournamentId: PropTypes.string.isRequired,
   matchConfig: PropTypes.object,
   isHandicap: PropTypes.bool,
-  passphrase: PropTypes.string,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };

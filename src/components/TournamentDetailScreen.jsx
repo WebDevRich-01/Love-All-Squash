@@ -11,6 +11,7 @@ import EnterResultModal from './EnterResultModal';
 import TournamentEditOptionsModal from './TournamentEditOptionsModal';
 import HandicapSetupModal from './HandicapSetupModal';
 import TeamFixtureScreen from './TeamFixtureScreen';
+import MatchDayView from './MatchDayView';
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const location = useLocation();
@@ -189,7 +190,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   };
 
   const handleEditResult = (match) => {
-    withPassphrase(() => setEnterResultMatch(match));
+    setEnterResultMatch(match);
   };
 
   const getStatusColor = (status) => {
@@ -396,7 +397,6 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             teamA={tA}
             teamB={tB}
             tournamentId={tournamentId}
-            passphrase={getCachedPassphrase(tournamentId)}
             matchConfig={tournament.config?.match || {}}
             poolPlayers={participants.filter((p) => p.player_type === 'pool' || p.is_pool)}
             racketballPlayers={participants.filter((p) => p.player_type === 'racketball')}
@@ -486,12 +486,30 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                     </button>
                   );
                 })}
+                {tournament.status === 'active' && (
+                  <button
+                    onClick={() => { setFilterTeamId(null); setSelectedDivision('matchday'); }}
+                    className={`flex-1 sm:flex-none sm:px-10 py-3 rounded-xl text-base font-bold transition-all ${
+                      selectedDivision === 'matchday'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                    }`}
+                  >
+                    Match Day
+                  </button>
+                )}
               </div>
             </div>
           );
         })()}
 
-        <div className='flex-1 overflow-y-auto'>
+        {selectedDivision === 'matchday' && (
+          <div className='flex-1 overflow-hidden min-h-0'>
+            <MatchDayView matches={matches} />
+          </div>
+        )}
+
+        <div className={selectedDivision === 'matchday' ? 'hidden' : 'flex-1 overflow-y-auto'}>
         <div className='max-w-4xl mx-auto px-4 lg:px-8 py-6 space-y-6'>
           {actionError && (
             <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm'>
@@ -709,7 +727,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                           key={fixture._id}
                           onClick={() => {
                             if (done) {
-                              withPassphrase(() => setTeamFixture(fixture));
+                              setTeamFixture(fixture);
                             } else {
                               setTeamFixture(fixture);
                             }
@@ -930,15 +948,13 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                               setAddPoolSaving(true);
                               setAddPoolError(null);
                               try {
-                                const passphrase = getCachedPassphrase(tournamentId);
                                 await api.addTournamentParticipant(
                                   tournamentId,
                                   {
                                     name: addPoolDraft.name.trim(),
                                     seed: addPoolDraft.seed,
                                     is_pool: true,
-                                  },
-                                  passphrase
+                                  }
                                 );
                                 setAddPoolDraft(null);
                                 await loadTournamentData();
@@ -956,7 +972,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                       </div>
                     ) : (
                       <button
-                        onClick={() => withPassphrase(() => setAddPoolDraft({ name: '', seed: null }))}
+                        onClick={() => setAddPoolDraft({ name: '', seed: null })}
                         className='w-full py-2.5 text-sm font-semibold border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-colors'
                       >
                         + Add pool player
@@ -1025,11 +1041,9 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                                 setAddExtraSaving(true);
                                 setAddExtraError(null);
                                 try {
-                                  const passphrase = getCachedPassphrase(tournamentId);
                                   await api.addTournamentParticipant(
                                     tournamentId,
-                                    { name: addExtraDraft.name.trim(), player_type: key },
-                                    passphrase
+                                    { name: addExtraDraft.name.trim(), player_type: key }
                                   );
                                   setAddExtraDraft(null);
                                   await loadTournamentData();
@@ -1047,7 +1061,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
                         </div>
                       ) : (
                         <button
-                          onClick={() => withPassphrase(() => setAddExtraDraft({ type: key, name: '' }))}
+                          onClick={() => setAddExtraDraft({ type: key, name: '' })}
                           className='w-full py-2.5 text-sm font-semibold border border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-colors'
                         >
                           + Add {label.toLowerCase()} player
@@ -1131,7 +1145,6 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           <EditParticipantsModal
             tournamentId={tournamentId}
             participants={participants}
-            passphrase={getCachedPassphrase(tournamentId)}
             onSave={() => { setShowEditParticipantsModal(false); loadTournamentData(); }}
             onCancel={() => setShowEditParticipantsModal(false)}
           />
@@ -1142,7 +1155,6 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
             tournamentId={tournamentId}
             matchConfig={tournament?.config?.match}
             isHandicap={!!(tournament?.config?.match?.is_handicap)}
-            passphrase={getCachedPassphrase(tournamentId)}
             onSave={() => { setEnterResultMatch(null); loadTournamentData(); }}
             onCancel={() => setEnterResultMatch(null)}
           />
@@ -1341,7 +1353,6 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
         <EditParticipantsModal
           tournamentId={tournamentId}
           participants={participants}
-          passphrase={getCachedPassphrase(tournamentId)}
           onSave={() => { setShowEditParticipantsModal(false); loadTournamentData(); }}
           onCancel={() => setShowEditParticipantsModal(false)}
         />

@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWakeLock } from '../hooks/useWakeLock';
 import PropTypes from 'prop-types';
 
-export default function GameScreen({ onBackToSetup, onFinishMatch }) {
+export default function GameScreen({ onBackToSetup, onFinishMatch, onCancelMatch }) {
   const navigate = useNavigate();
   const [letModalOpen, setLetModalOpen] = useState(false);
   const [letCallingPlayer, setLetCallingPlayer] = useState(null);
@@ -135,12 +135,14 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
   };
 
   const handleCancelMatch = () => {
-    resetGame();
-    if (onFinishMatch) {
-      onFinishMatch(); // Notify App component that match is finished
+    if (onCancelMatch) {
+      onCancelMatch(); // must read tournamentMatchContext before resetGame clears it
+      resetGame();
+    } else {
+      resetGame();
+      if (onFinishMatch) onFinishMatch();
+      navigate('/');
     }
-    // Don't call onBackToSetup when canceling - just go back to landing
-    navigate('/');
   };
 
   const handleBackToSetup = () => {
@@ -337,7 +339,7 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
 
       {/* Match setup modal — shown before serving is decided */}
       {!servingDecided && (
-        <MatchSetupModal onClose={() => {}} />
+        <MatchSetupModal onClose={() => {}} onCancel={handleCancelMatch} />
       )}
 
       {/* Let decision modal */}
@@ -385,8 +387,9 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
               Cancel Match?
             </h2>
             <p className='text-center mb-6 text-slate-600'>
-              Are you sure you want to cancel this match? All progress will be
-              lost.
+              {tournamentMatchContext?.isTeamRRString || tournamentMatchContext?.isTeamRRExtra
+                ? 'No score will be saved. You\'ll be returned to the fixture.'
+                : 'Are you sure you want to cancel this match? All progress will be lost.'}
             </p>
             <div className='flex gap-4'>
               <button
@@ -412,4 +415,5 @@ export default function GameScreen({ onBackToSetup, onFinishMatch }) {
 GameScreen.propTypes = {
   onBackToSetup: PropTypes.func.isRequired,
   onFinishMatch: PropTypes.func,
+  onCancelMatch: PropTypes.func,
 };
