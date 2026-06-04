@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  /* Brand blue — #48a7f1 as the primary (blue-600), scale derived proportionally */
+  --color-blue-50:  #eef7fe;
+  --color-blue-100: #d7ecfc;
+  --color-blue-200: #a9d8fa;
+  --color-blue-300: #7bc3f7;
+  --color-blue-400: #5ab4f2;
+  --color-blue-500: #48a7f1;
+  --color-blue-600: #48a7f1;
+  --color-blue-700: #2d93de;
+  --color-blue-800: #1a72b0;
+  --color-blue-900: #115280;
+  --color-blue-950: #0a3557;
+}
+
 @layer base {
   html {
     @apply h-full bg-slate-50;
