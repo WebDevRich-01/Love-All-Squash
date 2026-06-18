@@ -1068,7 +1068,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                       { label: '1', seeds: [1] },
                       { label: '2', seeds: [2] },
                       { label: '3', seeds: [3] },
-                      { label: '4/5', seeds: [4, 5] },
+                      { label: '5', seeds: [4, 5] },
                     ].map((group) => {
                       const players = formData.pool_players.filter((p) => group.seeds.includes(p.seed));
                       if (players.length === 0) return null;

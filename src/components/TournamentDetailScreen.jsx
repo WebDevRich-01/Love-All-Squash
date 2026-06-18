@@ -787,7 +787,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
               { label: '1', seeds: [1] },
               { label: '2', seeds: [2] },
               { label: '3', seeds: [3] },
-              { label: '4/5', seeds: [4, 5] },
+              { label: '5', seeds: [4, 5] },
             ].map((g) => ({
               ...g,
               players: poolPlayers.filter((p) => g.seeds.includes(p.seed)),
