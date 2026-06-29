@@ -9,6 +9,7 @@ import EditParticipantsModal from './EditParticipantsModal';
 import CreateTournamentModal from './CreateTournamentModal';
 import EnterResultModal from './EnterResultModal';
 import TournamentEditOptionsModal from './TournamentEditOptionsModal';
+import EditFixtureDatesModal from './EditFixtureDatesModal';
 import HandicapSetupModal from './HandicapSetupModal';
 import TeamFixtureScreen from './TeamFixtureScreen';
 import MatchDayView from './MatchDayView';
@@ -30,6 +31,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const [showPassphraseModal, setShowPassphraseModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showEditOptionsModal, setShowEditOptionsModal] = useState(false);
+  const [showEditDatesModal, setShowEditDatesModal] = useState(false);
   const [showEditParticipantsModal, setShowEditParticipantsModal] = useState(false);
   const [enterResultMatch, setEnterResultMatch] = useState(null);
   const [handicapMatch, setHandicapMatch] = useState(null);
@@ -152,9 +154,9 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     withPassphrase(() => setShowEditOptionsModal(true));
   };
 
-  // Called from within the edit options modal
-  const handleEditPlayers = () => {
-    setShowEditParticipantsModal(true);
+  const handleEditDates = () => {
+    setShowEditOptionsModal(false);
+    setShowEditDatesModal(true);
   };
 
   const handleTournamentUpdate = async (data) => {
@@ -1101,9 +1103,19 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           <TournamentEditOptionsModal
             tournamentId={tournamentId}
             passphrase={getCachedPassphrase(tournamentId)}
-            onEditPlayers={handleEditPlayers}
+            onEditDates={handleEditDates}
             onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
             onClose={() => setShowEditOptionsModal(false)}
+          />
+        )}
+        {showEditDatesModal && (
+          <EditFixtureDatesModal
+            tournamentId={tournamentId}
+            matches={matches}
+            participants={participants}
+            groups={groups}
+            onClose={() => setShowEditDatesModal(false)}
+            onSaved={() => { setShowEditDatesModal(false); loadTournamentData(); }}
           />
         )}
       </div>
@@ -1136,9 +1148,19 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           <TournamentEditOptionsModal
             tournamentId={tournamentId}
             passphrase={getCachedPassphrase(tournamentId)}
-            onEditPlayers={handleEditPlayers}
+            onEditDates={handleEditDates}
             onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
             onClose={() => setShowEditOptionsModal(false)}
+          />
+        )}
+        {showEditDatesModal && (
+          <EditFixtureDatesModal
+            tournamentId={tournamentId}
+            matches={matches}
+            participants={participants}
+            groups={groups}
+            onClose={() => setShowEditDatesModal(false)}
+            onSaved={() => { setShowEditDatesModal(false); loadTournamentData(); }}
           />
         )}
         {showEditParticipantsModal && (
@@ -1342,9 +1364,19 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
         <TournamentEditOptionsModal
           tournamentId={tournamentId}
           passphrase={getCachedPassphrase(tournamentId)}
-          onEditPlayers={handleEditPlayers}
+          onEditDates={handleEditDates}
           onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
           onClose={() => setShowEditOptionsModal(false)}
+        />
+      )}
+      {showEditDatesModal && (
+        <EditFixtureDatesModal
+          tournamentId={tournamentId}
+          matches={matches}
+          participants={participants}
+          groups={groups}
+          onClose={() => setShowEditDatesModal(false)}
+          onSaved={() => { setShowEditDatesModal(false); loadTournamentData(); }}
         />
       )}
 

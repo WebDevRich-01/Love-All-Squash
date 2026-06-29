@@ -5,7 +5,7 @@ import api from '../utils/api';
 const TournamentEditOptionsModal = ({
   tournamentId,
   passphrase,
-  onEditPlayers,
+  onEditDates,
   onReset,
   onClose,
 }) => {
@@ -42,13 +42,13 @@ const TournamentEditOptionsModal = ({
         {!confirming ? (
           <div className='space-y-3'>
             <button
-              onClick={() => { onEditPlayers(); onClose(); }}
+              onClick={onEditDates}
               className='w-full flex items-start gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left'
             >
-              <span className='text-xl mt-0.5'>✏️</span>
+              <span className='text-xl mt-0.5'>📅</span>
               <div>
-                <div className='font-medium text-gray-900'>Edit player names</div>
-                <div className='text-sm text-gray-500'>Rename players — e.g. for a substitute</div>
+                <div className='font-medium text-gray-900'>Edit fixture dates</div>
+                <div className='text-sm text-gray-500'>Reschedule fixtures — no results are affected</div>
               </div>
             </button>
 
@@ -101,7 +101,7 @@ const TournamentEditOptionsModal = ({
 TournamentEditOptionsModal.propTypes = {
   tournamentId: PropTypes.string.isRequired,
   passphrase: PropTypes.string.isRequired,
-  onEditPlayers: PropTypes.func.isRequired,
+  onEditDates: PropTypes.func.isRequired,
   onReset: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
 };
