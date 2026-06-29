@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import api from '../utils/api';
+import FixtureScorecard from './FixtureScorecard';
 
 const STRING_COUNT = 5;
 
@@ -66,7 +67,6 @@ export default function TeamFixtureScreen({
   teamA,
   teamB,
   tournamentId,
-  passphrase,
   onBack,
   onResultSaved,
   onScoreMatch,
@@ -76,6 +76,7 @@ export default function TeamFixtureScreen({
   beginnerPlayers,
 }) {
   const isEdit = fixture.status === 'completed' || fixture.status === 'walkover';
+  const [scorecardMode, setScorecardMode] = useState(fixture.status === 'completed');
 
   const [strings, setStrings] = useState(() => buildInitialStrings(fixture, teamA, teamB));
   const [expandedIdx, setExpandedIdx] = useState(null);
@@ -359,7 +360,7 @@ export default function TeamFixtureScreen({
           </button>
           <div className='flex-1 min-w-0'>
             <p className='text-xs text-gray-500 uppercase tracking-wide mb-1'>
-              {isEdit ? 'Edit Fixture' : 'Fixture'}
+              {scorecardMode ? 'Completed Fixture' : isEdit ? 'Edit Fixture' : 'Fixture'}
             </p>
             <div className='flex items-center gap-2 mb-2'>
               <span className='font-bold text-base text-gray-900 truncate flex-1'>{teamA?.name}</span>
@@ -368,44 +369,68 @@ export default function TeamFixtureScreen({
                 {teamB?.name}
               </span>
             </div>
-            {/* Team confirmation buttons */}
-            <div className='flex items-center gap-2'>
-              <div className='flex items-center gap-1.5 flex-1'>
-                {teamAConfirmed && (
-                  <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
-                  </svg>
-                )}
-                <button
-                  onClick={() => openTeamEditor('a')}
-                  className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
-                >
-                  {teamAConfirmed ? 'Edit' : 'Select team'}
-                </button>
+            {/* Team confirmation buttons — hidden in scorecard mode */}
+            {!scorecardMode && (
+              <div className='flex items-center gap-2'>
+                <div className='flex items-center gap-1.5 flex-1'>
+                  {teamAConfirmed && (
+                    <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
+                    </svg>
+                  )}
+                  <button
+                    onClick={() => openTeamEditor('a')}
+                    className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
+                  >
+                    {teamAConfirmed ? 'Edit' : 'Select team'}
+                  </button>
+                </div>
+                <div className='flex items-center gap-1.5 flex-1 justify-end'>
+                  <button
+                    onClick={() => openTeamEditor('b')}
+                    className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
+                  >
+                    {teamBConfirmed ? 'Edit' : 'Select team'}
+                  </button>
+                  {teamBConfirmed && (
+                    <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
+                    </svg>
+                  )}
+                </div>
               </div>
-              <div className='flex items-center gap-1.5 flex-1 justify-end'>
-                <button
-                  onClick={() => openTeamEditor('b')}
-                  className='text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 px-2.5 py-1 rounded-lg transition-colors'
-                >
-                  {teamBConfirmed ? 'Edit' : 'Select team'}
-                </button>
-                {teamBConfirmed && (
-                  <svg className='w-4 h-4 text-green-500 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2.5} d='M5 13l4 4L19 7' />
-                  </svg>
-                )}
-              </div>
+            )}
+          </div>
+          {!scorecardMode && (
+            <div className='shrink-0 text-sm font-medium text-gray-500'>
+              {persistedStrings.length}/{STRING_COUNT}
             </div>
-          </div>
-          <div className='shrink-0 text-sm font-medium text-gray-500'>
-            {persistedStrings.length}/{STRING_COUNT}
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Scorecard view for completed fixtures */}
+      {scorecardMode && (
+        <div className='flex-1 overflow-y-auto px-4 lg:px-8 py-6 max-w-2xl mx-auto w-full space-y-4'>
+          <FixtureScorecard
+            fixture={fixture}
+            teamA={teamA}
+            teamB={teamB}
+            strings={strings}
+            extraPlayers={extraPlayers}
+            extraResults={extraResults}
+          />
+          <button
+            onClick={() => setScorecardMode(false)}
+            className='w-full py-2.5 rounded-xl border border-gray-200 text-gray-500 font-medium text-sm hover:bg-gray-50 transition-colors'
+          >
+            Edit fixture
+          </button>
+        </div>
+      )}
+
       {/* Team lineup editor */}
-      {confirmingTeam && (
+      {!scorecardMode && confirmingTeam && (
         <div className='flex-1 px-4 lg:px-8 py-6 max-w-2xl mx-auto w-full space-y-4'>
           <h3 className='font-semibold text-gray-800 text-sm'>
             {confirmingTeam === 'a' ? teamA?.name : teamB?.name} — Confirm Lineup
@@ -537,7 +562,7 @@ export default function TeamFixtureScreen({
       )}
 
       {/* String list */}
-      {!confirmingTeam && (
+      {!scorecardMode && !confirmingTeam && (
       <div className='flex-1 px-4 lg:px-8 py-6 space-y-3 max-w-2xl mx-auto w-full'>
         {strings.map((row, idx) => {
           const isOpen = expandedIdx === idx;
@@ -999,8 +1024,8 @@ export default function TeamFixtureScreen({
       </div>
       )}
 
-      {/* Footer */}
-      <div className='bg-white border-t px-4 lg:px-8 py-4 shrink-0'>
+      {/* Footer — hidden in scorecard mode */}
+      {!scorecardMode && <div className='bg-white border-t px-4 lg:px-8 py-4 shrink-0'>
         <div className='max-w-2xl mx-auto space-y-3'>
           <div className='flex items-center justify-between'>
             <span
@@ -1041,7 +1066,7 @@ export default function TeamFixtureScreen({
           </button>
 
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
