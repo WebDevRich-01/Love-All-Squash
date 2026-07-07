@@ -18,6 +18,68 @@ import ErrorBoundary from './components/ErrorBoundary';
 import useGameStore from './stores/gameStore';
 import api from './utils/api';
 
+// Performs the API save for any tournament match type — no navigation or state reset.
+// Returns a resolved promise on success, rejects with an error on failure.
+async function doSaveTournamentResult(gameState) {
+  const ctx = gameState.tournamentMatchContext;
+  if (!ctx) return;
+
+  if (ctx.isTeamRRString) {
+    const { tournamentId, fixtureId, stringNumber, currentStrings } = ctx;
+    const { gameScores } = gameState;
+    const scoredString = {
+      string_number: stringNumber,
+      team_a_games: gameScores.filter((s) => s.player1 > s.player2).length,
+      team_b_games: gameScores.filter((s) => s.player2 > s.player1).length,
+      team_a_player: gameState.player1.name || undefined,
+      team_b_player: gameState.player2.name || undefined,
+      game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
+    };
+    const existingStrings = (currentStrings || [])
+      .filter((s) => s.persisted && s.string_number !== stringNumber)
+      .map((s) => ({
+        string_number: s.string_number,
+        team_a_games: s.team_a_games,
+        team_b_games: s.team_b_games,
+        team_a_player: s.team_a_player || undefined,
+        team_b_player: s.team_b_player || undefined,
+        game_scores: (s.games || []).map((g) => ({ team_a: parseInt(g.a, 10), team_b: parseInt(g.b, 10) })),
+      }));
+    await api.saveDraftFixtureStrings(tournamentId, fixtureId, [...existingStrings, scoredString]);
+    return;
+  }
+
+  if (ctx.isTeamRRExtra) {
+    const { tournamentId, fixtureId, extraMatchType } = ctx;
+    const { gameScores } = gameState;
+    await api.saveExtraMatchResult(tournamentId, fixtureId, extraMatchType, {
+      team_a_games: gameScores.filter((s) => s.player1 > s.player2).length,
+      team_b_games: gameScores.filter((s) => s.player2 > s.player1).length,
+      game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
+    });
+    return;
+  }
+
+  // Regular tournament match
+  const { gameScores } = gameState;
+  const player1Wins = gameScores.filter((s) => s.player1 > s.player2).length;
+  const player2Wins = gameScores.filter((s) => s.player2 > s.player1).length;
+  const p1Start = ctx.player1StartScore ?? 0;
+  const p2Start = ctx.player2StartScore ?? 0;
+  await api.submitTournamentMatchResult(ctx.tournamentId, ctx.matchId, {
+    winner_id: player1Wins > player2Wins ? ctx.player1Id : ctx.player2Id,
+    winner_name: player1Wins > player2Wins ? gameState.player1.name : gameState.player2.name,
+    loser_id: player1Wins > player2Wins ? ctx.player2Id : ctx.player1Id,
+    loser_name: player1Wins > player2Wins ? gameState.player2.name : gameState.player1.name,
+    game_scores: gameScores,
+    walkover: false,
+    retired: false,
+    ...((p1Start !== 0 || p2Start !== 0) && {
+      handicap_starts: { player1: p1Start, player2: p2Start },
+    }),
+  });
+}
+
 // Wrapper component to properly extract tournamentId from URL params
 function TournamentDetailScreenWrapper({ onBack, onScoreMatch }) {
   const { tournamentId } = useParams();
@@ -42,10 +104,13 @@ function App() {
   const setTournamentMatchContext = useGameStore(
     (state) => state.setTournamentMatchContext
   );
+  const matchWon = useGameStore((state) => state.matchWon);
   const [hasActiveMatch, setHasActiveMatch] = useState(false);
   const [gameSettings, setGameSettings] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   const isSubmitting = useRef(false);
+  // Tracks the in-flight auto-save so handleFinishMatch can await it instead of double-saving
+  const autoSaveRef = useRef({ promise: null, succeeded: false });
 
   // Check if there's an active match when the component mounts
   useEffect(() => {
@@ -56,6 +121,25 @@ function App() {
       state.player2.score > 0;
     setHasActiveMatch(hasMatch);
   }, []);
+
+  // Auto-save tournament results the moment the match is won so the result
+  // isn't lost if the marker forgets to press "Finish match".
+  useEffect(() => {
+    if (!matchWon) return;
+    if (autoSaveRef.current.promise) return; // already saving or saved
+
+    const gameState = useGameStore.getState();
+    if (!gameState.tournamentMatchContext) return;
+
+    const promise = doSaveTournamentResult(gameState)
+      .then(() => { autoSaveRef.current.succeeded = true; })
+      .catch((err) => {
+        if (import.meta.env.DEV) console.error('Auto-save failed:', err);
+        // handleFinishMatch will surface the error and offer a retry
+      });
+
+    autoSaveRef.current = { promise, succeeded: false };
+  }, [matchWon]);
 
   const handleBackToSetup = (settingsFromGame) => {
     setGameSettings({
@@ -80,145 +164,43 @@ function App() {
     isSubmitting.current = true;
 
     const gameState = useGameStore.getState();
-    const tournamentMatchContext = gameState.tournamentMatchContext;
+    const ctx = gameState.tournamentMatchContext;
 
     setSubmitError(null);
 
-    // ── Team Round Robin string — save draft result and return to fixture ──
-    if (tournamentMatchContext?.isTeamRRString) {
-      const { tournamentId, fixtureId, stringNumber, currentStrings } = tournamentMatchContext;
-      const gameScores = gameState.gameScores;
-      const teamAGames = gameScores.filter((s) => s.player1 > s.player2).length;
-      const teamBGames = gameScores.filter((s) => s.player2 > s.player1).length;
-
-      const scoredString = {
-        string_number: stringNumber,
-        team_a_games: teamAGames,
-        team_b_games: teamBGames,
-        team_a_player: gameState.player1.name || undefined,
-        team_b_player: gameState.player2.name || undefined,
-        game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
-      };
-
-      // Merge with already-persisted strings, replacing this string if it existed
-      const existingStrings = (currentStrings || [])
-        .filter((s) => s.persisted && s.string_number !== stringNumber)
-        .map((s) => ({
-          string_number: s.string_number,
-          team_a_games: s.team_a_games,
-          team_b_games: s.team_b_games,
-          team_a_player: s.team_a_player || undefined,
-          team_b_player: s.team_b_player || undefined,
-          game_scores: (s.games || []).map((g) => ({ team_a: parseInt(g.a, 10), team_b: parseInt(g.b, 10) })),
-        }));
-
-      try {
-        await api.saveDraftFixtureStrings(tournamentId, fixtureId, [...existingStrings, scoredString]);
-      } catch (error) {
-        if (import.meta.env.DEV) console.error('Error saving string result:', error);
-        isSubmitting.current = false;
-        setSubmitError('Failed to save the string result. Please check your connection and try again.');
-        return;
+    if (ctx) {
+      // Ensure the result is saved. Auto-save fires the moment the match is won,
+      // so in most cases this is already done or in flight.
+      if (!autoSaveRef.current.succeeded) {
+        try {
+          if (autoSaveRef.current.promise) {
+            // Wait for the in-progress auto-save rather than firing a duplicate request
+            await autoSaveRef.current.promise;
+          }
+          if (!autoSaveRef.current.succeeded) {
+            // Auto-save either wasn't started or failed — save now
+            await doSaveTournamentResult(gameState);
+            autoSaveRef.current.succeeded = true;
+          }
+        } catch (error) {
+          if (import.meta.env.DEV) console.error('Error saving match result:', error);
+          isSubmitting.current = false;
+          setSubmitError('Failed to save the match result. Please check your connection and try again.');
+          return;
+        }
       }
 
       isSubmitting.current = false;
+      autoSaveRef.current = { promise: null, succeeded: false };
       useGameStore.getState().resetGame();
       setTournamentMatchContext(null);
       setHasActiveMatch(false);
-      navigate(`/tournaments/${tournamentId}`, { state: { reopenFixtureId: fixtureId } });
-      return;
-    }
 
-    // ── Extra match (beginner) — save result and return to fixture ──
-    if (tournamentMatchContext?.isTeamRRExtra) {
-      const { tournamentId, fixtureId, extraMatchType } = tournamentMatchContext;
-      const gameScores = gameState.gameScores;
-      const teamAGames = gameScores.filter((s) => s.player1 > s.player2).length;
-      const teamBGames = gameScores.filter((s) => s.player2 > s.player1).length;
-
-      try {
-        await api.saveExtraMatchResult(tournamentId, fixtureId, extraMatchType, {
-          team_a_games: teamAGames,
-          team_b_games: teamBGames,
-          game_scores: gameScores.map((s) => ({ team_a: s.player1, team_b: s.player2 })),
-        });
-      } catch (error) {
-        if (import.meta.env.DEV) console.error('Error saving extra match result:', error);
-        isSubmitting.current = false;
-        setSubmitError('Failed to save the match result. Please check your connection and try again.');
-        return;
+      if (ctx.isTeamRRString || ctx.isTeamRRExtra) {
+        navigate(`/tournaments/${ctx.tournamentId}`, { state: { reopenFixtureId: ctx.fixtureId } });
+      } else {
+        navigate(`/tournaments/${ctx.tournamentId}`);
       }
-
-      isSubmitting.current = false;
-      useGameStore.getState().resetGame();
-      setTournamentMatchContext(null);
-      setHasActiveMatch(false);
-      navigate(`/tournaments/${tournamentId}`, { state: { reopenFixtureId: fixtureId } });
-      return;
-    }
-
-    // ── Regular tournament match — submit result ──
-    if (tournamentMatchContext) {
-      const player1Wins = gameState.gameScores.filter(
-        (s) => s.player1 > s.player2
-      ).length;
-      const player2Wins = gameState.gameScores.filter(
-        (s) => s.player2 > s.player1
-      ).length;
-
-      const winnerId =
-        player1Wins > player2Wins
-          ? tournamentMatchContext.player1Id
-          : tournamentMatchContext.player2Id;
-      const winnerName =
-        player1Wins > player2Wins
-          ? gameState.player1.name
-          : gameState.player2.name;
-      const loserId =
-        player1Wins > player2Wins
-          ? tournamentMatchContext.player2Id
-          : tournamentMatchContext.player1Id;
-      const loserName =
-        player1Wins > player2Wins
-          ? gameState.player2.name
-          : gameState.player1.name;
-
-      const p1Start = tournamentMatchContext.player1StartScore ?? 0;
-      const p2Start = tournamentMatchContext.player2StartScore ?? 0;
-      const matchResult = {
-        winner_id: winnerId,
-        winner_name: winnerName,
-        loser_id: loserId,
-        loser_name: loserName,
-        game_scores: gameState.gameScores,
-        walkover: false,
-        retired: false,
-        ...((p1Start !== 0 || p2Start !== 0) && {
-          handicap_starts: { player1: p1Start, player2: p2Start },
-        }),
-      };
-
-      try {
-        await api.submitTournamentMatchResult(
-          tournamentMatchContext.tournamentId,
-          tournamentMatchContext.matchId,
-          matchResult
-        );
-      } catch (error) {
-        if (import.meta.env.DEV) console.error('Error submitting tournament match result:', error);
-        isSubmitting.current = false;
-        // Show the error and keep the user on the current screen so they can retry
-        setSubmitError(
-          'Failed to save the match result. Please check your connection and try again.'
-        );
-        return; // Don't navigate — let the user retry or skip
-      }
-
-      isSubmitting.current = false;
-      useGameStore.getState().resetGame();
-      setTournamentMatchContext(null);
-      setHasActiveMatch(false);
-      navigate(`/tournaments/${tournamentMatchContext.tournamentId}`);
       return;
     }
 
@@ -251,6 +233,7 @@ function App() {
   };
 
   const handleScoreTournamentMatch = (matchContext) => {
+    autoSaveRef.current = { promise: null, succeeded: false };
     setTournamentMatchContext({
       ...matchContext,
       player1Id:
