@@ -19,7 +19,7 @@ export default function PointIndicator({ type }) {
         }
       `}
     >
-      {isMatchPoint ? "MP" : "GP"}
+      {isMatchPoint ? "MB" : "GB"}
     </div>
   );
 }
