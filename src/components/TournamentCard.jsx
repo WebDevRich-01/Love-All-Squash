@@ -33,6 +33,8 @@ const TournamentCard = ({ tournament, onView, onDelete }) => {
       pools_knockout: 'Pools → Knockout',
       double_elimination: 'Double Elimination',
       swiss: 'Swiss System',
+      team_round_robin: 'Team Round Robin',
+      team_round_robin_playoff: 'Team Round Robin Playoff',
     };
     return formatNames[format] || format;
   };

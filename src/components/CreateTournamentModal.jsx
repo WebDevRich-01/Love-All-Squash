@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
+import ImportRoundRobinModal from './ImportRoundRobinModal';
 import {
   DndContext,
   closestCenter,
@@ -106,6 +107,7 @@ const emptyTeam = (name = '') => ({
   id: `team-${Date.now()}-${Math.random()}`,
   name,
   color: 'border-blue-500',
+  position: null, // finishing position 1-4 — only used by team_round_robin_playoff
   roster: [
     { string_number: 1, player_name: '' },
     { string_number: 2, player_name: '' },
@@ -276,15 +278,18 @@ const makeTestDivisions = () =>
     })),
   }));
 
+const TEAM_DIVISION_FORMATS = ['team_round_robin', 'team_round_robin_playoff'];
+
 const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, participants: initialParticipants }) => {
   const editMode = !!tournament;
 
   const [formData, setFormData] = useState(() => {
     if (editMode) {
-      // Reconstruct divisions for team_round_robin from saved participants
+      // Reconstruct divisions for team formats from saved participants
       let divisions = [emptyDivision('Division A'), emptyDivision('Division B')];
-      if (tournament.format === 'team_round_robin' && initialParticipants?.length > 0) {
-        const divCount = tournament.config?.divisions?.count || 2;
+      if (TEAM_DIVISION_FORMATS.includes(tournament.format) && initialParticipants?.length > 0) {
+        const isPlayoffEdit = tournament.format === 'team_round_robin_playoff';
+        const divCount = isPlayoffEdit ? 2 : (tournament.config?.divisions?.count || 2);
         const byDiv = {};
         initialParticipants.forEach((p) => {
           if (p.is_pool || p.player_type) return;
@@ -300,6 +305,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
               id: `team-${p._id}-${i}`,
               name: p.name,
               color: p.color || 'border-blue-500',
+              position: isPlayoffEdit ? (p.seed || null) : null,
               roster: p.roster?.length > 0
                 ? p.roster
                 : [1, 2, 3, 4, 5].map((n) => ({ string_number: n, player_name: '' })),
@@ -366,6 +372,11 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
   const [teamRrTab, setTeamRrTab] = useState('div-0');
   const [poolInput, setPoolInput] = useState({ name: '', seed: null });
   const [extraPlayerInput, setExtraPlayerInput] = useState({ racketball: '', beginner: '' });
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  const isTeamRR = formData.format === 'team_round_robin';
+  const isPlayoff = formData.format === 'team_round_robin_playoff';
+  const isTeamFormat = isTeamRR || isPlayoff;
 
   // Drag and drop sensors
   // PointerSensor needs a distance constraint so a small tap doesn't cancel the drag.
@@ -551,9 +562,23 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
       return;
     }
 
-    const isTeamRR = formData.format === 'team_round_robin';
-
-    if (isTeamRR) {
+    if (isPlayoff) {
+      if (formData.divisions.length !== 2) {
+        setError('The playoff requires exactly 2 divisions');
+        return;
+      }
+      for (const div of formData.divisions) {
+        if (div.teams.length !== 4) {
+          setError(`${div.name} must have exactly 4 teams (found ${div.teams.length})`);
+          return;
+        }
+        const positions = div.teams.map((t) => t.position).filter((p) => p != null);
+        if (positions.length !== 4 || new Set(positions).size !== 4) {
+          setError(`${div.name}: assign each team a unique finishing position (1-4)`);
+          return;
+        }
+      }
+    } else if (isTeamRR) {
       const allTeams = formData.divisions.flatMap((d) => d.teams);
       if (allTeams.length < 2) {
         setError('Add at least 2 teams across all divisions');
@@ -574,7 +599,41 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
 
       let participants, config;
 
-      if (isTeamRR) {
+      if (isPlayoff) {
+        participants = [
+          ...formData.divisions.flatMap((div, divIdx) =>
+            div.teams.map((team) => ({
+              name: team.name,
+              seed: team.position,
+              color: team.color || 'border-blue-500',
+              roster: team.roster.filter((r) => r.player_name.trim()),
+              division_index: divIdx,
+            }))
+          ),
+          ...formData.pool_players.map((p) => ({
+            name: p.name,
+            seed: p.seed,
+            is_pool: true,
+          })),
+          ...(formData.racketball_players || []).map((p) => ({
+            name: p.name,
+            player_type: 'racketball',
+          })),
+          ...(formData.beginner_players || []).map((p) => ({
+            name: p.name,
+            player_type: 'beginner',
+          })),
+        ];
+        config = {
+          match: {
+            best_of: formData.matchSettings.best_of,
+            points_to_win: formData.matchSettings.points_to_win,
+            clear_points: formData.matchSettings.clear_points,
+          },
+          divisions: { count: 2 },
+          ...(Object.keys(formData.fixture_dates).length > 0 && { fixture_dates: formData.fixture_dates }),
+        };
+      } else if (isTeamRR) {
         // Flatten divisions into a single participant list with seeds
         let seed = 1;
         participants = [
@@ -762,7 +821,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
             </button>
             <button
               type='submit'
-              disabled={loading || (formData.format !== 'team_round_robin' && formData.participants.length < 2)}
+              disabled={loading || (!isTeamFormat && formData.participants.length < 2)}
               className='px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap'
             >
               {loading
@@ -881,8 +940,8 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           {/* Right panel — participants / divisions */}
           <div className='flex-1 lg:overflow-y-auto p-6'>
 
-            {/* ── Team Round Robin: tabbed divisions + pool ── */}
-            {formData.format === 'team_round_robin' && (
+            {/* ── Team Round Robin / Playoff: tabbed divisions + pool ── */}
+            {isTeamFormat && (
               <div className='space-y-4'>
 
                 {/* Tab bar */}
@@ -913,14 +972,25 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                     Pool {formData.pool_players.length > 0 && `(${formData.pool_players.length})`}
                   </button>
                   <div className='ml-auto flex items-center gap-2'>
-                    <button
-                      type='button'
-                      onClick={() => setFormData((prev) => ({ ...prev, ...fillSummer2026() }))}
-                      className='text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium'
-                    >
-                      Fill Summer 2026
-                    </button>
-                    {import.meta.env.DEV && (
+                    {isPlayoff && (
+                      <button
+                        type='button'
+                        onClick={() => setShowImportModal(true)}
+                        className='text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded font-medium'
+                      >
+                        Import from Round Robin
+                      </button>
+                    )}
+                    {isTeamRR && (
+                      <button
+                        type='button'
+                        onClick={() => setFormData((prev) => ({ ...prev, ...fillSummer2026() }))}
+                        className='text-xs bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded font-medium'
+                      >
+                        Fill Summer 2026
+                      </button>
+                    )}
+                    {isTeamRR && import.meta.env.DEV && (
                       <button
                         type='button'
                         onClick={() => setFormData((prev) => ({ ...prev, name: prev.name || 'Summer Showdown 2025', passphrase: prev.passphrase || 'test', divisions: makeTestDivisions() }))}
@@ -929,7 +999,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                         Fill test data
                       </button>
                     )}
-                    {teamRrTab !== 'pool' && (
+                    {!isPlayoff && teamRrTab !== 'pool' && (
                       <button
                         type='button'
                         onClick={() => {
@@ -956,7 +1026,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                         onChange={(e) => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], name: e.target.value }; return { ...prev, divisions }; })}
                         className='flex-1 font-bold text-gray-800 bg-transparent border-b border-transparent focus:border-blue-400 focus:outline-none'
                       />
-                      {formData.divisions.length > 1 && (
+                      {!isPlayoff && formData.divisions.length > 1 && (
                         <button
                           type='button'
                           onClick={() => {
@@ -1004,15 +1074,45 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                               </div>
                             ))}
                           </div>
+                          {isPlayoff && (
+                            <div>
+                              <span className='block text-xs text-gray-400 mb-1'>Finishing position in division</span>
+                              <div className='flex gap-1.5'>
+                                {[1, 2, 3, 4].map((pos) => {
+                                  const takenByOther = div.teams.some((t, i) => i !== teamIdx && t.position === pos);
+                                  const active = team.position === pos;
+                                  return (
+                                    <button
+                                      key={pos}
+                                      type='button'
+                                      disabled={takenByOther}
+                                      onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; const teams = [...divisions[divIdx].teams]; teams[teamIdx] = { ...teams[teamIdx], position: pos }; divisions[divIdx] = { ...divisions[divIdx], teams }; return { ...prev, divisions }; })}
+                                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                        active
+                                          ? 'bg-blue-600 text-white'
+                                          : takenByOther
+                                          ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {pos}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
-                      <button
-                        type='button'
-                        onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: [...divisions[divIdx].teams, emptyTeam()] }; return { ...prev, divisions }; })}
-                        className='w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-colors'
-                      >
-                        + Add Team
-                      </button>
+                      {(!isPlayoff || div.teams.length < 4) && (
+                        <button
+                          type='button'
+                          onClick={() => setFormData((prev) => { const divisions = [...prev.divisions]; divisions[divIdx] = { ...divisions[divIdx], teams: [...divisions[divIdx].teams, emptyTeam()] }; return { ...prev, divisions }; })}
+                          className='w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-colors'
+                        >
+                          + Add Team
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1145,8 +1245,79 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
                   </div>
                 )}
 
-                {/* Fixture Schedule (division tabs only) */}
-                {teamRrTab !== 'pool' && (() => {
+                {/* Bracket Preview (playoff only) */}
+                {isPlayoff && (() => {
+                  const [div0, div1] = formData.divisions;
+                  const byPos = (div, pos) => (div?.teams || []).find((t) => t.position === pos);
+                  const ready = div0 && div1 && [1, 2, 3, 4].every((p) => byPos(div0, p) && byPos(div1, p));
+                  if (!ready) {
+                    return (
+                      <div className='border-t pt-4'>
+                        <p className='text-xs text-gray-400'>
+                          Assign each team a finishing position (1-4) in both divisions to preview the bracket.
+                        </p>
+                      </div>
+                    );
+                  }
+                  const semis = [
+                    { matchNumber: 'PINT-SF-A', label: 'Pint Semi-Final A', teamA: byPos(div0, 1), teamB: byPos(div1, 2) },
+                    { matchNumber: 'PINT-SF-B', label: 'Pint Semi-Final B', teamA: byPos(div0, 2), teamB: byPos(div1, 1) },
+                    { matchNumber: 'HP-SF-A', label: 'Half-Pint Semi-Final A', teamA: byPos(div0, 3), teamB: byPos(div1, 4) },
+                    { matchNumber: 'HP-SF-B', label: 'Half-Pint Semi-Final B', teamA: byPos(div0, 4), teamB: byPos(div1, 3) },
+                  ];
+                  // Finals/consolation matchups aren't known until the semis are played, but the
+                  // match slot itself can still be scheduled ahead of time.
+                  const finals = [
+                    { matchNumber: 'PINT-F', label: 'Pint Final' },
+                    { matchNumber: 'PINT-3V4', label: 'Pint 3rd/4th Play-off' },
+                    { matchNumber: 'HP-F', label: 'Half-Pint Final' },
+                    { matchNumber: 'HP-7V8', label: 'Half-Pint 7th/8th Play-off' },
+                  ];
+                  const dateRow = (matchNumber, label, matchup) => (
+                    <div key={matchNumber} className='flex items-center gap-3 py-1.5'>
+                      <div className='flex-1 min-w-0'>
+                        <span className='text-xs text-gray-400 mr-2'>{label}</span>
+                        {matchup && <span className='text-sm text-gray-700'>{matchup}</span>}
+                      </div>
+                      <input
+                        type='date'
+                        value={formData.fixture_dates[matchNumber] || ''}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, fixture_dates: { ...prev.fixture_dates, [matchNumber]: e.target.value } }))}
+                        className='text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 shrink-0'
+                      />
+                    </div>
+                  );
+                  return (
+                    <div className='border-t pt-4 space-y-4'>
+                      <div className='space-y-2'>
+                        <h2 className='text-sm font-semibold text-gray-700'>Bracket Preview</h2>
+                        <div className='text-sm text-gray-600 space-y-1'>
+                          {semis.map((s) => (
+                            <p key={s.matchNumber}>
+                              <span className='font-medium text-gray-800'>{s.label}:</span> {s.teamA.name || 'TBD'} vs {s.teamB.name || 'TBD'}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <div className='space-y-2'>
+                        <h2 className='text-sm font-semibold text-gray-700'>
+                          Fixture Schedule <span className='font-normal text-gray-400'>(optional)</span>
+                        </h2>
+                        <p className='text-xs text-gray-400 uppercase tracking-wide'>Semi-Finals</p>
+                        <div className='space-y-2'>
+                          {semis.map((s) => dateRow(s.matchNumber, s.label, `${s.teamA.name} vs ${s.teamB.name}`))}
+                        </div>
+                        <p className='text-xs text-gray-400 uppercase tracking-wide pt-2'>Finals &amp; Consolation</p>
+                        <div className='space-y-2'>
+                          {finals.map((f) => dateRow(f.matchNumber, f.label, null))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Fixture Schedule (Team Round Robin only) */}
+                {!isPlayoff && teamRrTab !== 'pool' && (() => {
                   const slots = formData.divisions.flatMap((div, divIdx) => {
                     const teams = div.teams || [];
                     const result = [];
@@ -1187,7 +1358,7 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
             )}
 
             {/* ── Individual formats: participants ── */}
-            {formData.format !== 'team_round_robin' && (
+            {!isTeamFormat && (
               <div className='max-w-xl'>
                 <h2 className='text-sm font-semibold text-gray-700 mb-3'>Participants <span className='font-normal text-gray-400'>(minimum 2)</span></h2>
 
@@ -1244,6 +1415,22 @@ const CreateTournamentModal = ({ onClose, onSubmit, onUpdate, tournament, partic
           </div>{/* end right panel */}
         </div>{/* end body */}
       </form>
+
+      {showImportModal && (
+        <ImportRoundRobinModal
+          onClose={() => setShowImportModal(false)}
+          onImport={({ divisions, poolPlayers, racketballPlayers, beginnerPlayers }) => {
+            setFormData((prev) => ({
+              ...prev,
+              divisions,
+              pool_players: poolPlayers,
+              racketball_players: racketballPlayers,
+              beginner_players: beginnerPlayers,
+            }));
+            setShowImportModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

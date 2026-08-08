@@ -74,6 +74,7 @@ export default function TeamFixtureScreen({
   poolPlayers,
   racketballPlayers,
   beginnerPlayers,
+  contextLabel,
 }) {
   const isEdit = fixture.status === 'completed' || fixture.status === 'walkover';
   const [scorecardMode, setScorecardMode] = useState(fixture.status === 'completed');
@@ -92,6 +93,10 @@ export default function TeamFixtureScreen({
   const [lineupDraft, setLineupDraft] = useState([]); // 5 player name strings
   const [extraDraft, setExtraDraft] = useState({ racketball: null, beginner: null }); // null=not added
   const [savingLineup, setSavingLineup] = useState(false);
+
+  // Manual tie-break: when total games are level after all strings are in, a human
+  // picks who advances rather than the fixture being stuck with no way to complete.
+  const [manualWinnerOverride, setManualWinnerOverride] = useState(null);
 
   // Tracked locally so fixture view updates without a refetch
   const [extraPlayers, setExtraPlayers] = useState({
@@ -125,9 +130,10 @@ export default function TeamFixtureScreen({
     return { a, b };
   }, [strings, extraResults]);
 
-  const winner = totals.a > totals.b ? 'a' : totals.b > totals.a ? 'b' : null;
   const persistedStrings = strings.filter((s) => s.persisted);
   const allPersisted = persistedStrings.length === STRING_COUNT;
+  const isTie = allPersisted && totals.a === totals.b;
+  const winner = totals.a > totals.b ? 'a' : totals.b > totals.a ? 'b' : (isTie ? manualWinnerOverride : null);
   const bothConfirmed = teamAConfirmed && teamBConfirmed;
   const canComplete = allPersisted && winner !== null && bothConfirmed;
 
@@ -369,6 +375,9 @@ export default function TeamFixtureScreen({
                 {teamB?.name}
               </span>
             </div>
+            {contextLabel && (
+              <p className='text-xs text-gray-400 mb-2 truncate'>{contextLabel}</p>
+            )}
             {/* Team confirmation buttons — hidden in scorecard mode */}
             {!scorecardMode && (
               <div className='flex items-center gap-2'>
@@ -1052,7 +1061,38 @@ export default function TeamFixtureScreen({
           {winner && allPersisted && (
             <p className='text-center text-sm text-green-700 font-medium'>
               {winner === 'a' ? teamA?.name : teamB?.name} win
+              {isTie && manualWinnerOverride && ' (tie-break)'}
             </p>
+          )}
+
+          {isTie && bothConfirmed && (
+            <div className='space-y-2'>
+              <p className='text-center text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 px-3'>
+                Games are level — pick the team that advances
+              </p>
+              <div className='flex gap-3'>
+                <button
+                  onClick={() => setManualWinnerOverride('a')}
+                  className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+                    manualWinnerOverride === 'a'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Advance {teamA?.name}
+                </button>
+                <button
+                  onClick={() => setManualWinnerOverride('b')}
+                  className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+                    manualWinnerOverride === 'b'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Advance {teamB?.name}
+                </button>
+              </div>
+            </div>
           )}
 
           {error && <p className='text-center text-sm text-red-600'>{error}</p>}
@@ -1084,4 +1124,5 @@ TeamFixtureScreen.propTypes = {
   poolPlayers: PropTypes.array,
   racketballPlayers: PropTypes.array,
   beginnerPlayers: PropTypes.array,
+  contextLabel: PropTypes.string,
 };

@@ -13,6 +13,19 @@ import EditFixtureDatesModal from './EditFixtureDatesModal';
 import HandicapSetupModal from './HandicapSetupModal';
 import TeamFixtureScreen from './TeamFixtureScreen';
 import MatchDayView from './MatchDayView';
+import TeamPlayoffTournamentView from './TeamPlayoffTournamentView';
+
+// Context shown above the team names in TeamFixtureScreen when scoring a playoff fixture.
+const PLAYOFF_MATCH_CONTEXT = {
+  'PINT-SF-A': 'Pint Semi-Final A · Winner advances to the Pint Final',
+  'PINT-SF-B': 'Pint Semi-Final B · Winner advances to the Pint Final',
+  'PINT-F': 'Pint Final · Decides 1st & 2nd place',
+  'PINT-3V4': 'Pint 3rd/4th Play-off',
+  'HP-SF-A': 'Half-Pint Semi-Final A · Winner advances to the Half-Pint Final',
+  'HP-SF-B': 'Half-Pint Semi-Final B · Winner advances to the Half-Pint Final',
+  'HP-F': 'Half-Pint Final · Decides 5th & 6th place',
+  'HP-7V8': 'Half-Pint 7th/8th Play-off',
+};
 
 const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
   const location = useLocation();
@@ -210,6 +223,7 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
       single_elimination: 'Single Elimination',
       monrad: 'Monrad (Swiss)',
       team_round_robin: 'Team Round Robin',
+      team_round_robin_playoff: 'Team Round Robin Playoff',
     };
     return names[format] || format;
   };
@@ -235,8 +249,12 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
     );
   }
 
-  // ── Draft state (individual formats only — team_round_robin has its own view) ─
-  if (tournament.status === 'draft' && tournament.format !== 'team_round_robin') {
+  // ── Draft state (individual formats only — team formats have their own view) ─
+  if (
+    tournament.status === 'draft' &&
+    tournament.format !== 'team_round_robin' &&
+    tournament.format !== 'team_round_robin_playoff'
+  ) {
     const mc = tournament.config?.match || {};
     return (
       <div className='min-h-screen bg-gray-50'>
@@ -1119,6 +1137,91 @@ const TournamentDetailScreen = ({ tournamentId, onBack, onScoreMatch }) => {
           />
         )}
       </div>
+    );
+  }
+
+  // ── Team Round Robin Playoff view ─────────────────────────────────────────
+  if (tournament.format === 'team_round_robin_playoff') {
+    const participantMap = Object.fromEntries(participants.map((p) => [p._id, p]));
+
+    // Fixture screen takes over the whole view, same pattern as Team Round Robin
+    if (teamFixture) {
+      const tA = participantMap[teamFixture.participant_a?.participant_id] ??
+        participants.find((p) => p._id?.toString() === teamFixture.participant_a?.participant_id?.toString());
+      const tB = participantMap[teamFixture.participant_b?.participant_id] ??
+        participants.find((p) => p._id?.toString() === teamFixture.participant_b?.participant_id?.toString());
+      if (tA && tB) {
+        return (
+          <TeamFixtureScreen
+            fixture={teamFixture}
+            teamA={tA}
+            teamB={tB}
+            tournamentId={tournamentId}
+            matchConfig={tournament.config?.match || {}}
+            poolPlayers={participants.filter((p) => p.player_type === 'pool' || p.is_pool)}
+            racketballPlayers={participants.filter((p) => p.player_type === 'racketball')}
+            beginnerPlayers={participants.filter((p) => p.player_type === 'beginner')}
+            contextLabel={PLAYOFF_MATCH_CONTEXT[teamFixture.match_number]}
+            onBack={() => { setTeamFixture(null); loadTournamentData(); }}
+            onResultSaved={() => { setTeamFixture(null); loadTournamentData(); }}
+            onScoreMatch={onScoreMatch}
+          />
+        );
+      }
+    }
+
+    return (
+      <>
+        <TeamPlayoffTournamentView
+          tournament={tournament}
+          participants={participants}
+          matches={matches}
+          onBack={onBack}
+          onEditTournament={handleEditTournament}
+          onStartTournament={handleStartTournament}
+          onEdit={handleEdit}
+          onOpenFixture={(match) => setTeamFixture(match)}
+          actionError={actionError}
+        />
+        {showPassphraseModal && (
+          <PassphraseModal
+            tournamentId={tournamentId}
+            onSuccess={handlePassphraseSuccess}
+            onCancel={() => { setShowPassphraseModal(false); pendingAction.current = null; }}
+          />
+        )}
+        {showEditModal && (
+          <CreateTournamentModal
+            tournament={tournament}
+            participants={participants}
+            onClose={() => setShowEditModal(false)}
+            onUpdate={async (data) => {
+              await api.updateTournament(tournamentId, data, getCachedPassphrase(tournamentId));
+              setShowEditModal(false);
+              loadTournamentData();
+            }}
+          />
+        )}
+        {showEditOptionsModal && (
+          <TournamentEditOptionsModal
+            tournamentId={tournamentId}
+            passphrase={getCachedPassphrase(tournamentId)}
+            onEditDates={handleEditDates}
+            onReset={() => { setShowEditOptionsModal(false); loadTournamentData(); }}
+            onClose={() => setShowEditOptionsModal(false)}
+          />
+        )}
+        {showEditDatesModal && (
+          <EditFixtureDatesModal
+            tournamentId={tournamentId}
+            matches={matches}
+            participants={participants}
+            groups={groups}
+            onClose={() => setShowEditDatesModal(false)}
+            onSaved={() => { setShowEditDatesModal(false); loadTournamentData(); }}
+          />
+        )}
+      </>
     );
   }
 
