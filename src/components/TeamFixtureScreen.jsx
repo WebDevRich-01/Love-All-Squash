@@ -130,10 +130,71 @@ export default function TeamFixtureScreen({
     return { a, b };
   }, [strings, extraResults]);
 
+  // Countback used only when total games are level: first by strings/extras won
+  // outright (each string or extra is one decisive unit), then by total points
+  // scored across every game played. Mirrors squash countback conventions.
+  const tieBreak = useMemo(() => {
+    let unitsA = 0, unitsB = 0, pointsA = 0, pointsB = 0;
+
+    const tallyUnit = (gamesWonA, gamesWonB, gameList) => {
+      if (gamesWonA > gamesWonB) unitsA++;
+      else if (gamesWonB > gamesWonA) unitsB++;
+      (gameList || []).forEach(({ a: pa, b: pb }) => {
+        pointsA += Number(pa) || 0;
+        pointsB += Number(pb) || 0;
+      });
+    };
+
+    strings.forEach((s) => {
+      if (!s.persisted) return;
+      if (s.games?.length) {
+        const { a: ga, b: gb } = computeFromGames(s.games);
+        tallyUnit(ga, gb, s.games);
+      } else {
+        // Legacy record: only the games-won count survived, no per-game points to add.
+        tallyUnit(s.team_a_games || 0, s.team_b_games || 0, []);
+      }
+    });
+
+    for (const r of Object.values(extraResults)) {
+      if (!r) continue;
+      const gameList = (r.game_scores || []).map((g) => ({ a: g.team_a, b: g.team_b }));
+      tallyUnit(r.team_a_games || 0, r.team_b_games || 0, gameList);
+    }
+
+    return { unitsA, unitsB, pointsA, pointsB };
+  }, [strings, extraResults]);
+
   const persistedStrings = strings.filter((s) => s.persisted);
   const allPersisted = persistedStrings.length === STRING_COUNT;
-  const isTie = allPersisted && totals.a === totals.b;
-  const winner = totals.a > totals.b ? 'a' : totals.b > totals.a ? 'b' : (isTie ? manualWinnerOverride : null);
+
+  // Genuinely unresolvable only once games, strings/extras won, AND total points all tie —
+  // mathematically possible but vanishingly rare (needs an even number of decisive units).
+  const isTie = allPersisted
+    && totals.a === totals.b
+    && tieBreak.unitsA === tieBreak.unitsB
+    && tieBreak.pointsA === tieBreak.pointsB;
+
+  const winReason = !allPersisted || totals.a !== totals.b
+    ? null
+    : tieBreak.unitsA !== tieBreak.unitsB
+    ? 'strings'
+    : tieBreak.pointsA !== tieBreak.pointsB
+    ? 'points'
+    : manualWinnerOverride
+    ? 'manual'
+    : null;
+
+  const winner = totals.a !== totals.b
+    ? (totals.a > totals.b ? 'a' : 'b')
+    : !allPersisted
+    ? null
+    : tieBreak.unitsA !== tieBreak.unitsB
+    ? (tieBreak.unitsA > tieBreak.unitsB ? 'a' : 'b')
+    : tieBreak.pointsA !== tieBreak.pointsB
+    ? (tieBreak.pointsA > tieBreak.pointsB ? 'a' : 'b')
+    : manualWinnerOverride;
+
   const bothConfirmed = teamAConfirmed && teamBConfirmed;
   const canComplete = allPersisted && winner !== null && bothConfirmed;
 
@@ -1061,14 +1122,16 @@ export default function TeamFixtureScreen({
           {winner && allPersisted && (
             <p className='text-center text-sm text-green-700 font-medium'>
               {winner === 'a' ? teamA?.name : teamB?.name} win
-              {isTie && manualWinnerOverride && ' (tie-break)'}
+              {winReason === 'strings' && ' (countback: strings won)'}
+              {winReason === 'points' && ' (countback: points won)'}
+              {winReason === 'manual' && ' (tie-break)'}
             </p>
           )}
 
           {isTie && bothConfirmed && (
             <div className='space-y-2'>
               <p className='text-center text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 px-3'>
-                Games are level — pick the team that advances
+                Games, strings, and points are all level — pick the team that advances
               </p>
               <div className='flex gap-3'>
                 <button
